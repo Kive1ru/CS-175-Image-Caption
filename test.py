@@ -1,21 +1,18 @@
 import torch
 import torch.nn as nn
 import nltk
-import numpy as np
-# import tensorflow as tf
+from torchvision import models
+import torchvision.transforms as transforms
+from PIL import Image
 from pathlib import Path
+from utils import get_device
 
 
-root = Path('data')
+root = Path('data/flickr8k')
 count = 0
 for img in (root / 'images').iterdir():
     count += 1
 print(count)
 
-
-class BaselineRNN(nn.module):
-    def __init__(self, img_shape):
-        pass
-
-
-    
+device = get_device()
+print(device)
