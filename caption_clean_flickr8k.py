@@ -24,7 +24,7 @@ def data_clean(data_map):
             caption = caption_list[i]
             caption = caption.split()
             caption = [word.lower() for word in caption]
-            caption_list[i] = "startseq " + ' '.join(caption)
+            caption_list[i] = "startseq " + ' '.join(caption) + " endseq"
     return data_map
 
 
@@ -32,14 +32,16 @@ def tokenize(data_map):
     tokenizer = tf.keras.preprocessing.text.Tokenizer()
     captions = []
     for key, caption_list in data_map.items():
-        captions.extend(iter(caption_list))
+        for caption in caption_list:
+            captions.append(caption)
     tokenizer.fit_on_texts(captions)
     vocab_size = len(tokenizer.word_index) + 1
     num_images = len(data_map.keys())
     images =list(data_map.keys())
     train_img = images[:int(num_images * 0.7)]
     test_img = images[int(num_images * 0.7):]
-    print(tokenizer.texts_to_sequences([captions[1]])[0])
-    return tokenizer, vocab_size, train_img, test_img
+    return tokenizer, vocab_size, train_img, test_img, captions
 
-tokenizer, vocab_size, train_img, test_img = tokenize(data_clean(data_load()))
+tokenizer, vocab_size, train_img, test_img, captions = tokenize(data_clean(data_load()))
+print(tokenizer.texts_to_sequences([captions[1], captions[2]]))
+print(captions[1], captions[2])
