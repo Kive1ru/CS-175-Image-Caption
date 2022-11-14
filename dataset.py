@@ -16,10 +16,12 @@ class FDataset(Dataset):
         self.tokenizer = tf.keras.preprocessing.text.Tokenizer()
         self.tokenizer.fit_on_texts(self.captions)
         self.vocab_size = len(self.tokenizer.word_index) + 1
-        
+
+
     def __len__(self):
         return len(self.df)
-    
+
+
     def __getitem__(self,idx):
         caption = self.captions[idx]
         img_name = self.imgs[idx]
