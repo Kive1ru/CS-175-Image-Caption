@@ -42,6 +42,8 @@ def tokenize(data_map):
     test_img = images[int(num_images * 0.7):]
     return tokenizer, vocab_size, train_img, test_img, captions
 
+'''
 tokenizer, vocab_size, train_img, test_img, captions = tokenize(data_clean(data_load()))
 print(tokenizer.texts_to_sequences([captions[1], captions[2]]))
 print(captions[1], captions[2])
+'''
