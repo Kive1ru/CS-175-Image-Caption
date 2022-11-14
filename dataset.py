@@ -4,6 +4,8 @@ from torch.utils.data import DataLoader,Dataset
 import tensorflow as tf
 from PIL import Image
 import torchvision.transforms as transforms
+import numpy as np
+import torch
 
 class FDataset(Dataset):
     
@@ -35,7 +37,19 @@ class FDataset(Dataset):
         return img, self.tokenizer.texts_to_sequences([caption])[0]
 
 
-'''if __name__ == "__main__":
+def collate(batch):
+    imgs = []
+    caps = []
+    for item in batch:
+        imgs.append(item[0].unsqueeze(0))
+        caps.append(item[1])
+    imgs = torch.cat(imgs,dim=0)
+    caps = tf.keras.preprocessing.sequence.pad_sequences(caps, padding='post')
+    return imgs,caps
+
+        
+'''
+if __name__ == "__main__":
     BASE_DIR = f"{os.getcwd()}/data/flickr8k"
     transformer = transforms.Compose(
         [transforms.Resize((224, 224)),
@@ -45,4 +59,16 @@ class FDataset(Dataset):
         capFilename = BASE_DIR+"/captions.txt",
         transform=transformer
     )
-    print(dataset[0])'''
+    print(dataset[0])
+    data_loader = DataLoader(
+        dataset=dataset,
+        batch_size=100,
+        shuffle=True,
+        collate_fn=collate
+    )
+    for i in data_loader:
+        print(i)
+        print(len(i[0]),len(i[1]))
+        break
+'''
+
