@@ -64,24 +64,38 @@ class Decoder(nn.Module):
         lstm_input = feature_vector.reshape((1, batch_size, self.embed_dim))
         print("lstm_input.shape:", lstm_input.shape)
         token_softmax = []
-        prev_token_id = None
+        all_token_ids = None
         h_n = torch.zeros((self.lstm_layer_num, batch_size, self.vocab_size)).to(device)
         c_n = torch.zeros((self.lstm_layer_num, batch_size, self.vocab_size)).to(device)
 
         reached_EOS = False
         while not reached_EOS and len(token_softmax) < self.target_captions.shape[1] if self.is_training else self.max_token_num:
             out, (h_n, c_n) = self.lstm(lstm_input, (h_n, c_n))
-            prev_token_id = out.argmax(dim=2)  # dim=0 is the batch dimension
+            prev_token_id = out.argmax(dim=2)  # dim=1 is the batch dimension
+            # print("prev_token_id.shape:", prev_token_id.shape)
+            # print("all_token_ids.shape:", all_token_ids.shape)
+            if all_token_ids is None:
+                all_token_ids = prev_token_id.transpose(0, 1)
+            else:
+                all_token_ids = torch.cat((all_token_ids, prev_token_id.transpose(0, 1)), dim=1)
+                
             if self.is_training:
                 lstm_input = self.text_encoder(self.target_captions[:, len(token_softmax)]).reshape((1, batch_size, self.embed_dim))
             else:
                 lstm_input = self.text_encoder(prev_token_id.to(device=device, dtype=int)).reshape((1, batch_size, self.embed_dim))
             token_softmax.append(out)
-            reached_EOS = (prev_token_id == self.EOS_token_id).to(torch.float32).mean() == 1
-            print(reached_EOS)
-
-        self.is_training = False
+            reached_EOS = (all_token_ids == self.EOS_token_id).any(dim=1).to(torch.float32).mean() == 1
+            # print(reached_EOS)
+        
+        # append padding
+        if self.is_training:
+            self.is_training = False
+            for _ in range(self.target_captions.shape[1] - len(token_softmax)):
+                token_softmax.append(torch.zeros((1, batch_size, self.vocab_size)).to(device))
+                
         return torch.stack(token_softmax, dim=0)
+        
+
 
     def predict(self, feature_vector):
         token_softmaxs = self.forward(feature_vector)

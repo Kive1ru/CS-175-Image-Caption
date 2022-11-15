@@ -49,8 +49,8 @@ def collate(batch):
         imgs.append(item[0].unsqueeze(0))
         caps.append(item[1])
     imgs = torch.cat(imgs,dim=0)
-    caps = tf.keras.preprocessing.sequence.pad_sequences(caps, padding='post', value=3)  # 3 is the endseq token id
-    return imgs, torch.from_numpy(caps).to(get_device())
+    caps = tf.keras.preprocessing.sequence.pad_sequences(caps, padding='post', value=0)
+    return imgs, torch.from_numpy(caps).to(device=get_device(), dtype=torch.long)
 
         
 '''

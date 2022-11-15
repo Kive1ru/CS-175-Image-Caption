@@ -12,8 +12,8 @@ def train():
     BASE_DIR = f"{os.getcwd()}/data/flickr8k"
 
     epoch = 10
-    batch_size = 50
-    lr = 0.001
+    batch_size = 20
+    lr = 0.005
 
     img_transform = transforms.Compose([
         transforms.Resize((224, 224)),
@@ -41,29 +41,30 @@ def train():
 
     print("vocab_size:", dataset.vocab_size)
     model = BaselineRNN(400, dataset.vocab_size, torchvision.models.VGG16_Weights.DEFAULT, 3).to(device)
+    model.train()
     model.img_encoder.freeze_param()
     optimizer = torch.optim.Adam(model.parameters(), lr)
-    criteria = torch.nn.CrossEntropyLoss()
+    criteria = torch.nn.CrossEntropyLoss(ignore_index=0)
 
     loss_history = []
     for e in range(epoch):
         for b, (imgs, captions) in enumerate(dataloader):
             optimizer.zero_grad()
 
-            b_size = len(captions)
+            #b_size = len(captions)
             model.decoder.set_target_captions(captions)
             captions_softmaxs = model(imgs)
             output = captions_softmaxs.reshape((-1, captions_softmaxs.shape[-1]))
             target = captions.reshape(-1)
 
-            print(output.shape, target.shape, captions.shape)
+            print(output.shape)
             loss = criteria(output, target)
             loss_history.append(loss)
-
             loss.backward()
             optimizer.step()
 
-            print('\r', f"epoch {e}: {b},\tloss={round(loss.item(), 3)}", end='')
+            print('\r', f"epoch {e}: {b},\tloss={round(loss.item(), 3)}", end=' ')
+
 
 if __name__ == "__main__":
     train()
