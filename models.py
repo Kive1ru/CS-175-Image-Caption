@@ -85,7 +85,6 @@ class Decoder(nn.Module):
                 lstm_input = self.text_encoder(prev_token_id.to(device=device, dtype=int)).reshape((1, batch_size, self.embed_dim))
             token_softmax.append(out)
             reached_EOS = (all_token_ids == self.EOS_token_id).any(dim=1).to(torch.float32).mean() == 1
-            # print(reached_EOS)
         
         # append padding
         if self.is_training:
