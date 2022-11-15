@@ -6,6 +6,7 @@ from PIL import Image
 import torchvision.transforms as transforms
 import numpy as np
 import torch
+from utils import get_device
 
 class FDataset(Dataset):
     
@@ -15,14 +16,13 @@ class FDataset(Dataset):
         self.transform = transform
         self.imgs = self.df["image"]
         self.captions = self.df["caption"]
+        self.clean_data()
         self.tokenizer = tf.keras.preprocessing.text.Tokenizer()
         self.tokenizer.fit_on_texts(self.captions)
         self.vocab_size = len(self.tokenizer.word_index) + 1
 
-
     def __len__(self):
         return len(self.df)
-
 
     def __getitem__(self,idx):
         caption = self.captions[idx]
@@ -31,10 +31,15 @@ class FDataset(Dataset):
         img = Image.open(img_location)
         if self.transform is not None:
             img = self.transform(img)
-        caption = caption.split()
-        caption = [word.lower() for word in caption]
-        caption = "startseq " + ' '.join(caption) + " endseq"
+
         return img, self.tokenizer.texts_to_sequences([caption])[0]
+
+    def clean_data(self):
+        for i in range(len(self.captions)):
+            caption = self.captions[i]
+            caption = caption.split()
+            caption = [word.lower() for word in caption]
+            self.captions[i] = "startseq " + ' '.join(caption) + " endseq"
 
 
 def collate(batch):
@@ -44,8 +49,8 @@ def collate(batch):
         imgs.append(item[0].unsqueeze(0))
         caps.append(item[1])
     imgs = torch.cat(imgs,dim=0)
-    caps = tf.keras.preprocessing.sequence.pad_sequences(caps, padding='post')
-    return imgs,caps
+    caps = tf.keras.preprocessing.sequence.pad_sequences(caps, padding='post', value=3)  # 3 is the endseq token id
+    return imgs, torch.from_numpy(caps).to(get_device())
 
         
 '''
@@ -57,16 +62,16 @@ if __name__ == "__main__":
     dataset =  FDataset(
         root_dir = BASE_DIR+"/Images",
         capFilename = BASE_DIR+"/captions.txt",
-        transform=transformer
+        img_transform=transformer
     )
     print(dataset[0])
-    data_loader = DataLoader(
+    dataloader = DataLoader(
         dataset=dataset,
         batch_size=100,
         shuffle=True,
         collate_fn=collate
     )
-    for i in data_loader:
+    for i in dataloader:
         print(i)
         print(len(i[0]),len(i[1]))
         break

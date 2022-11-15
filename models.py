@@ -6,6 +6,12 @@ from PIL import Image
 from pathlib import Path
 from utils import get_device
 
+PRINT_LOG = False
+
+if not PRINT_LOG:
+    def print(*args):
+        pass
+
 
 class VGG16ImageEncoder(nn.Module):
     def __init__(self, weights, out_size):
@@ -22,7 +28,9 @@ class VGG16ImageEncoder(nn.Module):
 
     def forward(self, x):
         features = self.model.features(x)
-        avgpool = self.model.avgpool(features).flatten()
+        avgpool = self.model.avgpool(features)
+        avgpool = avgpool.reshape((avgpool.shape[0], -1))  # avgpool.shape[0] is the batch size
+        print("avgpool.shape:", avgpool.shape)
         out = self.model.classifier(avgpool)
         return out
 
@@ -39,35 +47,56 @@ class TextEncoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, embed_dim, vocab_size, lstm_layer_num, EOS_token_id, max_token_num=15):
+    def __init__(self, embed_dim, vocab_size, lstm_layer_num, EOS_token_id, max_token_num=35):
         super(Decoder, self).__init__()
         self.embed_dim = embed_dim
         self.vocab_size = vocab_size
         self.lstm_layer_num = lstm_layer_num
         self.EOS_token_id = EOS_token_id
         self.max_token_num = max_token_num
+        self.is_training = False
         self.text_encoder = TextEncoder(self.vocab_size, embed_dim)
         self.lstm = nn.LSTM(input_size=self.embed_dim, hidden_size=self.vocab_size, num_layers=self.lstm_layer_num)
 
     def forward(self, feature_vector):
         device = get_device()
-        lstm_input = feature_vector.reshape((1, -1))
+        batch_size = feature_vector.shape[0]
+        lstm_input = feature_vector.reshape((1, batch_size, self.embed_dim))
+        print("lstm_input.shape:", lstm_input.shape)
         token_softmax = []
         prev_token_id = None
-        h_n = torch.zeros((self.lstm_layer_num, self.vocab_size)).to(device)
-        c_n = torch.zeros((self.lstm_layer_num, self.vocab_size)).to(device)
-        while prev_token_id != self.EOS_token_id and len(token_softmax) < self.max_token_num:
-            out, (h_n, c_n) = self.lstm(lstm_input, (h_n, c_n))
-            token_softmax.append(out)
+        h_n = torch.zeros((self.lstm_layer_num, batch_size, self.vocab_size)).to(device)
+        c_n = torch.zeros((self.lstm_layer_num, batch_size, self.vocab_size)).to(device)
 
-            prev_token_id = out.argmax()
-            lstm_input = self.text_encoder(torch.tensor([prev_token_id], dtype=int, device=device))
-        return torch.concat(token_softmax, dim=0)
+        reached_EOS = False
+        while not reached_EOS and len(token_softmax) < self.target_captions.shape[1] if self.is_training else self.max_token_num:
+            out, (h_n, c_n) = self.lstm(lstm_input, (h_n, c_n))
+            prev_token_id = out.argmax(dim=2)  # dim=0 is the batch dimension
+            if self.is_training:
+                lstm_input = self.text_encoder(self.target_captions[:, len(token_softmax)]).reshape((1, batch_size, self.embed_dim))
+            else:
+                lstm_input = self.text_encoder(prev_token_id.to(device=device, dtype=int)).reshape((1, batch_size, self.embed_dim))
+            token_softmax.append(out)
+            reached_EOS = (prev_token_id == self.EOS_token_id).to(torch.float32).mean() == 1
+            print(reached_EOS)
+
+        self.is_training = False
+        return torch.stack(token_softmax, dim=0)
 
     def predict(self, feature_vector):
         token_softmaxs = self.forward(feature_vector)
         token_ids = token_softmaxs.argmax(dim=1)
         return token_ids
+
+    def set_target_captions(self, captions):
+        """
+        Parameters
+        ----------
+        captions: torch.Tensor
+            2D array with shape (B x L). B = batch size; L = sentence length
+        """
+        self.is_training = True
+        self.target_captions = captions
 
 
 class BaselineRNN(nn.Module):
@@ -88,7 +117,6 @@ class BaselineRNN(nn.Module):
 if __name__ == "__main__":
     root = Path('data/flickr8k')
     device = get_device()
-
     transform = transforms.Compose(
         [transforms.Resize((224, 224)),
          transforms.ToTensor(),
@@ -99,6 +127,5 @@ if __name__ == "__main__":
 
     # Convert the image to PyTorch tensor
     tensor = transform(image).to(device)
-    img_cap_model = BaselineRNN(400, 2000, torchvision.models.VGG16_Weights.DEFAULT, 3).to(device)
-    caption = img_cap_model.predict(tensor)  # tensor of token ids
-    print(caption)
+    # img_cap_model = BaselineRNN(400, 2000, torchvision.models.VGG16_Weights.DEFAULT, 3).to(device)
+
