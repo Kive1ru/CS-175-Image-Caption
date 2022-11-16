@@ -52,7 +52,7 @@ def train(epoch=10, batch_size=64, lr=0.002):
     # )
 
     print("vocab_size:", dataset.vocab_size)
-    model = BaselineRNN(400, dataset.vocab_size, torchvision.models.VGG16_Weights.DEFAULT, 3).to(device)
+    model = BaselineRNN(400, dataset.vocab_size, torchvision.models.VGG16_Weights.IMAGENET1K_FEATURES, 3).to(device)
     model.train()
     model.img_encoder.freeze_param()
     optimizer = torch.optim.Adam(model.parameters(), lr)
@@ -70,11 +70,13 @@ def train(epoch=10, batch_size=64, lr=0.002):
     last_time = time.time()
     for e in range(epoch):
         for b, (imgs, captions) in enumerate(train_loader):
+            #imgs = imgs.to(device)
+            #captions = captions.to(device)
             print("done")
             optimizer.zero_grad()
 
             #b_size = len(captions)
-            captions = captions[:, :-1]
+            captions = captions[:, 1:]
             model.decoder.set_target_captions(captions)
             captions_softmaxs = model(imgs)
             #output = captions_softmaxs.reshape((-1, captions_softmaxs.shape[-1]))
@@ -100,6 +102,7 @@ def train(epoch=10, batch_size=64, lr=0.002):
             last_time = now
             
             print("loading next batch...", end="")
+            model.train()
 
 
 if __name__ == "__main__":

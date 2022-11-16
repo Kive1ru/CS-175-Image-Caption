@@ -119,7 +119,7 @@ class BaselineRNN(nn.Module):
         return self.decoder.predict(features)
 
 
-if __name__ == "__main__":
+'''if __name__ == "__main__":
     root = Path('data/flickr8k')
     device = get_device()
     transform = transforms.Compose(
@@ -132,5 +132,5 @@ if __name__ == "__main__":
 
     # Convert the image to PyTorch tensor
     tensor = transform(image).to(device)
-    # img_cap_model = BaselineRNN(400, 2000, torchvision.models.VGG16_Weights.DEFAULT, 3).to(device)
+    # img_cap_model = BaselineRNN(400, 2000, torchvision.models.VGG16_Weights.DEFAULT, 3).to(device)'''
 

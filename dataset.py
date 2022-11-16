@@ -8,6 +8,7 @@ import numpy as np
 import torch
 from utils import get_device
 
+
 class FDataset(Dataset):
     
     def __init__(self, root_dir, capFilename, transform=None):
@@ -19,7 +20,7 @@ class FDataset(Dataset):
         self.clean_data()
         self.tokenizer = tf.keras.preprocessing.text.Tokenizer(oov_token="<PAD>")
         self.tokenizer.fit_on_texts(self.captions)
-        self.vocab_size = len(self.tokenizer.word_index)
+        self.vocab_size = len(self.tokenizer.word_index)+1
 
     def __len__(self):
         return len(self.df)
@@ -50,7 +51,9 @@ def collate(batch):
         caps.append(item[1])
     imgs = torch.cat(imgs,dim=0)
     caps = tf.keras.preprocessing.sequence.pad_sequences(caps, padding='post', value=1)
+    #caps = pad_sequence(caps,batch_first=False,padding_value=1)
     return imgs, torch.from_numpy(caps).to(device=get_device(), dtype=torch.long)
+
 
         
 
