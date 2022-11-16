@@ -17,9 +17,9 @@ class FDataset(Dataset):
         self.imgs = self.df["image"]
         self.captions = self.df["caption"]
         self.clean_data()
-        self.tokenizer = tf.keras.preprocessing.text.Tokenizer()
+        self.tokenizer = tf.keras.preprocessing.text.Tokenizer(oov_token="<PAD>")
         self.tokenizer.fit_on_texts(self.captions)
-        self.vocab_size = len(self.tokenizer.word_index) + 1
+        self.vocab_size = len(self.tokenizer.word_index)
 
     def __len__(self):
         return len(self.df)
@@ -49,12 +49,12 @@ def collate(batch):
         imgs.append(item[0].unsqueeze(0))
         caps.append(item[1])
     imgs = torch.cat(imgs,dim=0)
-    caps = tf.keras.preprocessing.sequence.pad_sequences(caps, padding='post', value=0)
+    caps = tf.keras.preprocessing.sequence.pad_sequences(caps, padding='post', value=1)
     return imgs, torch.from_numpy(caps).to(device=get_device(), dtype=torch.long)
 
         
-'''
-if __name__ == "__main__":
+
+'''if __name__ == "__main__":
     BASE_DIR = f"{os.getcwd()}/data/flickr8k"
     transformer = transforms.Compose(
         [transforms.Resize((224, 224)),
@@ -64,7 +64,7 @@ if __name__ == "__main__":
         capFilename = BASE_DIR+"/captions.txt",
         transform=transformer
     )
-    print(dataset.tokenizer.sequences_to_texts([[1]]))
+    print(dataset.tokenizer.sequences_to_texts([[0,1,2,3,4]]))
     dataloader = DataLoader(
         dataset=dataset,
         batch_size=100,

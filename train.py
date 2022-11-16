@@ -56,7 +56,7 @@ def train(epoch=10, batch_size=64, lr=0.002):
     model.train()
     model.img_encoder.freeze_param()
     optimizer = torch.optim.Adam(model.parameters(), lr)
-    criteria = torch.nn.CrossEntropyLoss(ignore_index=0)
+    criteria = torch.nn.CrossEntropyLoss(ignore_index=1)
 
     loss_history = []
     fig = plt.figure()  # figsize=(5, 3)
@@ -74,14 +74,15 @@ def train(epoch=10, batch_size=64, lr=0.002):
             optimizer.zero_grad()
 
             #b_size = len(captions)
+            captions = captions[:, :-1]
             model.decoder.set_target_captions(captions)
             captions_softmaxs = model(imgs)
-            output = captions_softmaxs.reshape((-1, captions_softmaxs.shape[-1]))
+            #output = captions_softmaxs.reshape((-1, captions_softmaxs.shape[-1]))
             target = captions.reshape(-1)
 
-            print(output.shape, "computing loss...", end="")
-            loss = criteria(output, target)
-            print("done")
+            #print(output.shape, "computing loss...", end="")
+            loss = criteria(captions_softmaxs.view(-1, dataset.vocab_size), target)
+            #print("done")
             loss_history.append(loss.item())
             print("computing gradient...", end="")
             loss.backward()
@@ -89,8 +90,7 @@ def train(epoch=10, batch_size=64, lr=0.002):
             print("updating parameters...", end="")
             optimizer.step()
             print("done")
-            print(f"epoch {e}: {b},\t")  # loss={round(loss.item(), 3)}
-
+            print(f"epoch {e}: {b},\tloss = {loss.item()}")  # loss={round(loss.item(), 3)}
             ax.clear()
             ax.plot(loss_history)
             fig.canvas.draw()
