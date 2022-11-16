@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from dataset import FDataset, collate
 from models import BaselineRNN
 from utils import get_device
+import time
 
 
 def train(epoch=10, batch_size=64, lr=0.002):
@@ -66,8 +67,10 @@ def train(epoch=10, batch_size=64, lr=0.002):
 
     fig.show()
     fig.canvas.draw()
+    last_time = time.time()
     for e in range(epoch):
         for b, (imgs, captions) in enumerate(train_loader):
+            print("done")
             optimizer.zero_grad()
 
             #b_size = len(captions)
@@ -76,17 +79,27 @@ def train(epoch=10, batch_size=64, lr=0.002):
             output = captions_softmaxs.reshape((-1, captions_softmaxs.shape[-1]))
             target = captions.reshape(-1)
 
-            print(output.shape)
+            print(output.shape, "computing loss...", end="")
             loss = criteria(output, target)
+            print("done")
             loss_history.append(loss.item())
+            print("computing gradient...", end="")
             loss.backward()
+            print("done")
+            print("updating parameters...", end="")
             optimizer.step()
-            print(f"epoch {e}: {b},\tloss={round(loss.item(), 3)}")
+            print("done")
+            print(f"epoch {e}: {b},\t")  # loss={round(loss.item(), 3)}
 
             ax.clear()
             ax.plot(loss_history)
             fig.canvas.draw()
-            print("loading next batch...")
+            
+            now = time.time()
+            print("took", round(now - last_time,3), "seconds\n")
+            last_time = now
+            
+            print("loading next batch...", end="")
 
 
 if __name__ == "__main__":

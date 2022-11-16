@@ -6,12 +6,6 @@ from PIL import Image
 from pathlib import Path
 from utils import get_device
 
-PRINT_LOG = False
-
-if not PRINT_LOG:
-    def print(*args):
-        pass
-
 
 class VGG16ImageEncoder(nn.Module):
     def __init__(self, weights, out_size):
@@ -27,11 +21,9 @@ class VGG16ImageEncoder(nn.Module):
             param.requires_grad = False
 
     def forward(self, x):
-        print("encoding Image")
         features = self.model.features(x)
         avgpool = self.model.avgpool(features)
         avgpool = avgpool.reshape((avgpool.shape[0], -1))  # avgpool.shape[0] is the batch size
-        print("avgpool.shape:", avgpool.shape)
         out = self.model.classifier(avgpool)
         return out
 
@@ -63,7 +55,6 @@ class Decoder(nn.Module):
         device = get_device()
         batch_size = feature_vector.shape[0]
         lstm_input = feature_vector.reshape((1, batch_size, self.embed_dim))
-        print("lstm_input.shape:", lstm_input.shape)
         token_softmax = []
         all_token_ids = None
         h_n = torch.zeros((self.lstm_layer_num, batch_size, self.vocab_size)).to(device)
@@ -120,9 +111,7 @@ class BaselineRNN(nn.Module):
         self.decoder = Decoder(embed_dim, vocab_size, 1, EOS_token_id)
 
     def forward(self, x):
-        print("encoding image")
         features = self.img_encoder(x)
-        print("decoding image context to caption")
         return self.decoder(features)
 
     def predict(self, x):

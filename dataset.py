@@ -62,9 +62,9 @@ if __name__ == "__main__":
     dataset =  FDataset(
         root_dir = BASE_DIR+"/Images",
         capFilename = BASE_DIR+"/captions.txt",
-        img_transform=transformer
+        transform=transformer
     )
-    print(dataset[0])
+    print(dataset.tokenizer.sequences_to_texts([[1]]))
     dataloader = DataLoader(
         dataset=dataset,
         batch_size=100,
