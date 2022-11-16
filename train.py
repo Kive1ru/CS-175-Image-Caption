@@ -9,13 +9,11 @@ from models import BaselineRNN
 from utils import get_device
 
 
-def train():
+def train(epoch=10, batch_size=64, lr=0.002):
     device = get_device()
     BASE_DIR = f"{os.getcwd()}/data/flickr8k"
 
-    epoch = 10
-    batch_size = 20
-    lr = 0.002
+    
 
     img_transform = transforms.Compose([
         transforms.Resize((224, 224)),
@@ -45,12 +43,12 @@ def train():
         collate_fn=collate
     )
 
-    test_loader = DataLoader(
-        dataset=test_set,
-        batch_size=batch_size,
-        shuffle=True,
-        collate_fn=collate
-    )
+    # test_loader = DataLoader(
+    #     dataset=test_set,
+    #     batch_size=batch_size,
+    #     shuffle=True,
+    #     collate_fn=collate
+    # )
 
     print("vocab_size:", dataset.vocab_size)
     model = BaselineRNN(400, dataset.vocab_size, torchvision.models.VGG16_Weights.DEFAULT, 3).to(device)
@@ -88,6 +86,7 @@ def train():
             ax.clear()
             ax.plot(loss_history)
             fig.canvas.draw()
+            print("loading next batch...")
 
 
 if __name__ == "__main__":

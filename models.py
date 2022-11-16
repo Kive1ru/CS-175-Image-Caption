@@ -27,6 +27,7 @@ class VGG16ImageEncoder(nn.Module):
             param.requires_grad = False
 
     def forward(self, x):
+        print("encoding Image")
         features = self.model.features(x)
         avgpool = self.model.avgpool(features)
         avgpool = avgpool.reshape((avgpool.shape[0], -1))  # avgpool.shape[0] is the batch size
@@ -119,7 +120,9 @@ class BaselineRNN(nn.Module):
         self.decoder = Decoder(embed_dim, vocab_size, 1, EOS_token_id)
 
     def forward(self, x):
+        print("encoding image")
         features = self.img_encoder(x)
+        print("decoding image context to caption")
         return self.decoder(features)
 
     def predict(self, x):
