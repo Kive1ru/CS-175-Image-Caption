@@ -7,13 +7,14 @@ import matplotlib.pyplot as plt
 from dataset import FDataset, collate
 from models import BaselineRNN
 from utils import get_device, save_model, load_model
+from eval import generate_captions
 import time
 
 
 MODEL_PATH = "model_weights.torch"
 
 
-def train(epochs=10, batch_size=64, lr=0.0002):
+def train(epochs=10, batch_size=64, lr=0.0003):
     device = get_device()
     BASE_DIR = f"{os.getcwd()}/data/flickr8k"
 
@@ -29,30 +30,31 @@ def train(epochs=10, batch_size=64, lr=0.0002):
         transform=img_transform
     )
 
-    train_test_ratio = [0.7, 0.3]
+    train_test_ratio = [0.7, 0.28, 0.02]
     generator = torch.Generator().manual_seed(0)  # fix the seed for random_split
-    train_set, test_set = random_split(dataset, train_test_ratio, generator=generator)
+    train_set, eval_set, test_set = random_split(dataset, train_test_ratio, generator=generator)
 
     train_loader = DataLoader(
         dataset=train_set,
         batch_size=batch_size,
-        shuffle=True,
+        shuffle=False,
         collate_fn=collate
     )
 
-    # test_loader = DataLoader(
-    #     dataset=test_set,
-    #     batch_size=batch_size,
-    #     shuffle=True,
-    #     collate_fn=collate
-    # )
+    test_loader = DataLoader(
+        dataset=test_set,
+        batch_size=batch_size,
+        shuffle=False,
+        collate_fn=collate
+    )
 
     print("vocab_size:", dataset.vocab_size)
-    model = BaselineRNN(400, dataset.vocab_size, 3000, torchvision.models.VGG16_Weights.IMAGENET1K_FEATURES, 3, 1).to(
-        device)
+    print(f"training on {device} with lr={lr}")
+    model = BaselineRNN(300, 512, dataset.tokenizer, 2048, torchvision.models.VGG16_Weights.IMAGENET1K_FEATURES).to(device)
     model.train()
     model.img_encoder.freeze_param()
     optimizer = torch.optim.Adam(model.parameters(), lr, weight_decay=0.001)
+    # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
     criteria = torch.nn.CrossEntropyLoss(ignore_index=1)
 
     loss_history = []
@@ -65,28 +67,21 @@ def train(epochs=10, batch_size=64, lr=0.0002):
     fig.show()
     fig.canvas.draw()
     last_time = time.time()
-    epoch, _, _ = load_model(MODEL_PATH, model, optimizer)
-
     try:
-        for e in range(epoch, epochs):
+        for e in range(epochs):
             for b, (imgs, captions) in enumerate(train_loader):
-                # print("done")
+                print("done")
                 imgs = imgs.to(device)
                 captions = captions.to(device)
-                print("captions.shape:", captions.shape)
                 optimizer.zero_grad()
-
                 captions_softmaxs = model(imgs, captions)
-                # print("captions_softmaxs.shape:", captions_softmaxs.shape)
-                # output = captions_softmaxs.view(-1, dataset.vocab_size)
-                # target = captions.reshape(-1)
-
                 # print("computing loss...", end="")
-                # loss = criteria(output, target)
                 loss = 0
-                for w in range(captions.shape[1]):
+
+                # ignore startseq for loss computation
+                for w in range(captions.shape[1] - 1):
                     output = captions_softmaxs[w, :, :]
-                    target = captions[:, w]
+                    target = captions[:, w+1]
                     loss += criteria(output, target)
                 loss = loss / (w + 1)
                 # print("done")
@@ -102,11 +97,18 @@ def train(epochs=10, batch_size=64, lr=0.0002):
                 fig.canvas.draw()
 
                 now = time.time()
-                print(f"\repoch {e}: {b} loss={round(loss.item(), 4)}. Took {round(now - last_time, 3)} seconds.")  # loss={round(loss.item(), 4)}
+                print(f"\repoch {e}: {b} loss={loss.item()}. Took {round(now - last_time, 3)} seconds.")  # loss={round(loss.item(), 4)}
                 last_time = now
+
+                # validate
+                if b % 100 == 0:
+                    model.eval()
+                    generate_captions(model, test_loader, dataset.tokenizer)
 
                 # print("loading next batch...", end="")
                 model.train()
+            # scheduler.step()
+            save_model(epochs, model, optimizer, loss, f"model_weights/caption_{e}.torch")
     except:
         # save_model(e, b, model, optimizer, loss, MODEL_PATH)
         raise

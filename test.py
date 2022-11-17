@@ -7,12 +7,7 @@ from PIL import Image
 from pathlib import Path
 from utils import get_device
 
+a = torch.tensor([[1,2,3], [1,2,3]])
+b = a.argmax(dim=1)
 
-root = Path('data/flickr8k')
-count = 0
-for img in (root / 'images').iterdir():
-    count += 1
-print(count)
-
-device = get_device()
-print(device)
+print(b.transpose())
