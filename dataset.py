@@ -42,6 +42,13 @@ class FDataset(Dataset):
             caption = caption.split()
             caption = [word.lower() for word in caption]
             self.captions[i] = "startseq " + ' '.join(caption) + " endseq"
+            '''
+        self.captions = self.captions.apply(lambda x: x.lower())
+        self.captions = self.captions.apply(lambda x: x.replace("[^A-Za-z]",""))
+        self.captions = self.captions.apply(lambda x: x.replace("\s+"," "))
+        self.captions = self.captions.apply(lambda x: " ".join([word for word in x.split() if len(word)>1]))
+        self.captions = "startseq "+self.captions+" endseq"
+        '''
 
 
 def collate(batch):
@@ -59,7 +66,7 @@ def collate(batch):
 
 
         
-'''
+
 if __name__ == "__main__":
     BASE_DIR = f"{os.getcwd()}/data/flickr8k"
     transformer = transforms.Compose(
@@ -70,6 +77,9 @@ if __name__ == "__main__":
         capFilename = BASE_DIR+"/captions.txt",
         transform=transformer
     )
+    print(dataset[0][1].tolist())
+    print(dataset.tokenizer.sequences_to_texts([dataset[0][1].tolist()]))
+    
     dataloader = DataLoader(
         dataset=dataset,
         batch_size=100,
@@ -77,7 +87,6 @@ if __name__ == "__main__":
         collate_fn=collate
     )
     for i in dataloader:
-        print(i)
-        print(len(i[0]),len(i[1]))
+        print(i[1])
+        #print(len(i[0]),len(i[1]))
         break
-'''

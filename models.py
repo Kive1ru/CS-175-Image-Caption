@@ -11,26 +11,32 @@ class VGG16ImageEncoder(nn.Module):
     def __init__(self, weights, out_size):
         super(VGG16ImageEncoder, self).__init__()
         self.out_size = out_size
-        self.model = torchvision.models.vgg16(weights=weights)
+        model = torchvision.models.resnet50(weights=weights)
 
         # modify the last predict layer to output the desired dimension
-        self.model.classifier = nn.Sequential(
+        '''self.model.classifier = nn.Sequential(
             nn.BatchNorm1d(25088),
             nn.Linear(25088, 10000),
             nn.Tanh(),
             nn.Linear(10000, out_size),
             nn.Tanh()
-        )
-
-
-    def freeze_param(self):
-        for param in self.model.features.parameters():
+        )'''
+        for param in model.parameters():
             param.requires_grad = False
+        modules = list(model.children())[:-2]
+        self.model = nn.Sequential(*modules)
+
+
+    '''def freeze_param(self):
+        for param in self.model.features.parameters():
+            param.requires_grad = False'''
 
     def forward(self, x):
-        out = self.model.features(x).reshape((x.shape[0], -1))
-        out = self.model.classifier(out)
-        return out
+        #out = self.model.features(x).reshape((x.shape[0], -1))
+        features = self.model(x)
+        features = features.permute(0, 2, 3, 1)
+        features = features.view(features.size(0), -1, features.size(-1))
+        return features
 
 
 class TextEncoder(nn.Module):
@@ -53,10 +59,12 @@ class Decoder(nn.Module):
         self.init_h = nn.Linear(feature_dim, hidden_size)
         self.init_c = nn.Linear(feature_dim, hidden_size)
         self.lstm_cell = nn.LSTMCell(embed_dim, hidden_size, bias=True)
-        self.fc = nn.Sequential(
+        '''self.fc = nn.Sequential(
             nn.Linear(hidden_size, self.vocab_size, bias=True),
             nn.Sigmoid()
-        )
+        )'''
+        self.fc = nn.Linear(hidden_size, self.vocab_size, bias=True)
+        self.drop = nn.Dropout(0.03)
 
     def forward(self, features, captions):
         b_size = captions.shape[0]
@@ -65,13 +73,13 @@ class Decoder(nn.Module):
         embeddings = self.text_encoder(captions)
         for w in range(captions.shape[1]):
             h, c = self.lstm_cell(embeddings[:, w, :], (h, c))
-            out = self.fc(h)
+            out = self.fc(self.drop(h))
             token_softmaxs.append(out)
 
         return torch.stack(token_softmaxs, dim=0).to(get_device())
 
     def init_hidden(self, features):
-        return self.init_h(features), self.init_c(features)
+        return self.init_h(features.mean(dim=1)), self.init_c(features.mean(dim=1))
 
     # def predict(self, features, max_token_num=35):
     #     b_size = features.shape[0]
@@ -132,7 +140,7 @@ class BaselineRNN(nn.Module):
 
 if __name__ == "__main__":
     root = Path('data/flickr8k')
-    device = get_device()
+    #device = get_device()
     transform = transforms.Compose(
         [transforms.Resize((224, 224)),
          transforms.ToTensor(),
@@ -142,7 +150,7 @@ if __name__ == "__main__":
     image = Image.open(root / 'Images/667626_18933d713e.jpg')
 
     # Convert the image to PyTorch tensor
-    tensor = transform(image).to(device)
+    #tensor = transform(image).to(device)
     # img_cap_model = BaselineRNN(400, 2000, torchvision.models.VGG16_Weights.DEFAULT, 3).to(device)
 
     vgg = torchvision.models.vgg16(weights=torchvision.models.VGG16_Weights.DEFAULT)

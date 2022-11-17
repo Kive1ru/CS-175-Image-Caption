@@ -14,7 +14,7 @@ import time
 MODEL_PATH = "model_weights.torch"
 
 
-def train(epochs=10, batch_size=64, lr=0.0003):
+def train(epochs=10, batch_size=256, lr=0.0003):
     device = get_device()
     BASE_DIR = f"{os.getcwd()}/data/flickr8k"
 
@@ -50,9 +50,9 @@ def train(epochs=10, batch_size=64, lr=0.0003):
 
     print("vocab_size:", dataset.vocab_size)
     print(f"training on {device} with lr={lr}")
-    model = BaselineRNN(300, 512, dataset.tokenizer, 25088, torchvision.models.VGG16_Weights.IMAGENET1K_FEATURES).to(device)
+    model = BaselineRNN(300, 512, dataset.tokenizer, 2048, torchvision.models.ResNet50_Weights.IMAGENET1K_V1).to(device)
     model.train()
-    model.img_encoder.freeze_param()
+    #model.img_encoder.freeze_param()
     optimizer = torch.optim.Adam(model.parameters(), lr, weight_decay=0.001)
     # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
     criteria = torch.nn.CrossEntropyLoss(ignore_index=1)
@@ -70,7 +70,6 @@ def train(epochs=10, batch_size=64, lr=0.0003):
     try:
         for e in range(epochs):
             for b, (imgs, captions) in enumerate(train_loader):
-                print("done")
                 imgs = imgs.to(device)
                 captions = captions.to(device)
                 optimizer.zero_grad()
@@ -101,14 +100,14 @@ def train(epochs=10, batch_size=64, lr=0.0003):
                 last_time = now
 
                 # validate
-                if b % 100 == 0:
+                '''if (b+1) % 100 == 0:
                     model.eval()
-                    generate_captions(model, test_loader, dataset.tokenizer)
+                    generate_captions(model, test_loader, dataset.tokenizer)'''
 
                 # print("loading next batch...", end="")
                 model.train()
             # scheduler.step()
-            save_model(epochs, model, optimizer, loss, f"model_weights/caption_{e}.torch")
+            #save_model(epochs, model, optimizer, loss, f"model_weights/caption_{e}.torch")
     except:
         # save_model(e, b, model, optimizer, loss, MODEL_PATH)
         raise
