@@ -29,18 +29,16 @@ class VGG16ImageEncoder(nn.Module):
 
 
 class TextEncoder(nn.Module):
-    def __init__(self, vocab_size, embed_dim) -> None:
+    def __init__(self, vocab_size, embed_dim, padding_idx) -> None:
         super(TextEncoder, self).__init__()
-        self.vocab_size = vocab_size
-        self.embed_dim = embed_dim
-        self.embed1 = nn.Embedding(vocab_size, embed_dim)
+        self.embed1 = nn.Embedding(vocab_size, embed_dim, padding_idx=padding_idx)
 
     def forward(self, x):
         return self.embed1(x)
 
 
 class Decoder(nn.Module):
-    def __init__(self, embed_dim, vocab_size, lstm_layer_num, EOS_token_id, max_token_num=35):
+    def __init__(self, embed_dim, vocab_size, feature_dim, lstm_layer_num, EOS_token_id, padding_idx, max_token_num=35):
         super(Decoder, self).__init__()
         self.embed_dim = embed_dim
         self.vocab_size = vocab_size
@@ -48,44 +46,60 @@ class Decoder(nn.Module):
         self.EOS_token_id = EOS_token_id
         self.max_token_num = max_token_num
         self.is_training = False
-        self.text_encoder = TextEncoder(self.vocab_size, embed_dim)
+        self.text_encoder = TextEncoder(self.vocab_size, embed_dim, padding_idx)
         self.lstm = nn.LSTM(input_size=self.embed_dim, hidden_size=self.vocab_size, num_layers=self.lstm_layer_num)
+        self.init_h = nn.Linear(feature_dim, vocab_size)
+        self.init_c = nn.Linear(feature_dim, vocab_size)
+        self.lstm_cell = nn.LSTMCell(embed_dim, vocab_size, bias=True)
 
-    def forward(self, feature_vector):
-        device = get_device()
-        batch_size = feature_vector.shape[0]
-        lstm_input = feature_vector.reshape((1, batch_size, self.embed_dim))
-        token_softmax = []
-        all_token_ids = None
-        h_n = torch.zeros((self.lstm_layer_num, batch_size, self.vocab_size)).to(device)
-        c_n = torch.zeros((self.lstm_layer_num, batch_size, self.vocab_size)).to(device)
+    # def forward(self, feature_vector):
+    #     device = get_device()
+    #     batch_size = feature_vector.shape[0]
+    #     lstm_input = feature_vector.reshape((1, batch_size, self.embed_dim))
+    #     token_softmaxs = []
+    #     all_token_ids = None
+    #     h_n = torch.zeros((self.lstm_layer_num, batch_size, self.vocab_size)).to(device)
+    #     c_n = torch.zeros((self.lstm_layer_num, batch_size, self.vocab_size)).to(device)
+    #
+    #     reached_EOS = False
+    #     while not reached_EOS and len(token_softmaxs) < self.target_captions.shape[1] if self.is_training else self.max_token_num:
+    #         out, (h_n, c_n) = self.lstm(lstm_input, (h_n, c_n))
+    #         prev_token_id = out.argmax(dim=2)  # dim=1 is the batch dimension
+    #         # print("prev_token_id.shape:", prev_token_id.shape)
+    #         # print("all_token_ids.shape:", all_token_ids.shape)
+    #         if all_token_ids is None:
+    #             all_token_ids = prev_token_id.transpose(0, 1)
+    #         else:
+    #             all_token_ids = torch.cat((all_token_ids, prev_token_id.transpose(0, 1)), dim=1)
+    #
+    #         if self.is_training:
+    #             lstm_input = self.text_encoder(self.target_captions[:, len(token_softmaxs)]).reshape((1, batch_size, self.embed_dim))
+    #         else:
+    #             lstm_input = self.text_encoder(prev_token_id.to(device=device, dtype=int)).reshape((1, batch_size, self.embed_dim))
+    #         token_softmaxs.append(out)
+    #         reached_EOS = (all_token_ids == self.EOS_token_id).any(dim=1).to(torch.float32).mean() == 1
+    #
+    #     # append padding
+    #     if self.is_training:
+    #         self.is_training = False
+    #         for _ in range(self.target_captions.shape[1] - len(token_softmaxs)):
+    #             token_softmaxs.append(torch.zeros((1, batch_size, self.vocab_size)).to(device))
+    #
+    #     return torch.stack(token_softmaxs, dim=0)
 
-        reached_EOS = False
-        while not reached_EOS and len(token_softmax) < self.target_captions.shape[1] if self.is_training else self.max_token_num:
-            out, (h_n, c_n) = self.lstm(lstm_input, (h_n, c_n))
-            prev_token_id = out.argmax(dim=2)  # dim=1 is the batch dimension
-            # print("prev_token_id.shape:", prev_token_id.shape)
-            # print("all_token_ids.shape:", all_token_ids.shape)
-            if all_token_ids is None:
-                all_token_ids = prev_token_id.transpose(0, 1)
-            else:
-                all_token_ids = torch.cat((all_token_ids, prev_token_id.transpose(0, 1)), dim=1)
-                
-            if self.is_training:
-                lstm_input = self.text_encoder(self.target_captions[:, len(token_softmax)]).reshape((1, batch_size, self.embed_dim))
-            else:
-                lstm_input = self.text_encoder(prev_token_id.to(device=device, dtype=int)).reshape((1, batch_size, self.embed_dim))
-            token_softmax.append(out)
-            reached_EOS = (all_token_ids == self.EOS_token_id).any(dim=1).to(torch.float32).mean() == 1
-        
-        # append padding
-        if self.is_training:
-            self.is_training = False
-            for _ in range(self.target_captions.shape[1] - len(token_softmax)):
-                token_softmax.append(torch.zeros((1, batch_size, self.vocab_size)).to(device))
-                
-        return torch.stack(token_softmax, dim=0)
-        
+    def forward(self, features, captions):
+        b_size = captions.shape[0]
+        token_softmaxs = []
+        h, c = self.init_hidden(features)
+        embeddings = self.text_encoder(captions)
+        for w in range(captions.shape[1]):
+            h, c = self.lstm_cell(embeddings[:, w, :], (h, c))
+            token_softmaxs.append(h)
+
+        return torch.stack(token_softmaxs, dim=0)
+
+    def init_hidden(self, features):
+        return self.init_h(features), self.init_c(features)
 
 
     def predict(self, feature_vector):
@@ -105,21 +119,21 @@ class Decoder(nn.Module):
 
 
 class BaselineRNN(nn.Module):
-    def __init__(self, embed_dim, vocab_size, vgg_weights, EOS_token_id) -> None:
+    def __init__(self, embed_dim, vocab_size, feature_dim, vgg_weights, EOS_token_id, padding_idx) -> None:
         super(BaselineRNN, self).__init__()
-        self.img_encoder = VGG16ImageEncoder(weights=vgg_weights, out_size=embed_dim)
-        self.decoder = Decoder(embed_dim, vocab_size, 1, EOS_token_id)
+        self.img_encoder = VGG16ImageEncoder(weights=vgg_weights, out_size=feature_dim)
+        self.decoder = Decoder(embed_dim, vocab_size, feature_dim, 1, EOS_token_id, padding_idx)
 
-    def forward(self, x):
+    def forward(self, x, captions):
         features = self.img_encoder(x)
-        return self.decoder(features)
+        return self.decoder(features, captions)
 
     def predict(self, x):
         features = self.img_encoder(x)
         return self.decoder.predict(features)
 
 
-'''if __name__ == "__main__":
+if __name__ == "__main__":
     root = Path('data/flickr8k')
     device = get_device()
     transform = transforms.Compose(
@@ -132,5 +146,7 @@ class BaselineRNN(nn.Module):
 
     # Convert the image to PyTorch tensor
     tensor = transform(image).to(device)
-    # img_cap_model = BaselineRNN(400, 2000, torchvision.models.VGG16_Weights.DEFAULT, 3).to(device)'''
+    # img_cap_model = BaselineRNN(400, 2000, torchvision.models.VGG16_Weights.DEFAULT, 3).to(device)
 
+    vgg = torchvision.models.vgg16(weights=torchvision.models.VGG16_Weights.DEFAULT)
+    print(vgg)

@@ -1,4 +1,4 @@
-import torchvision.transforms as transforms
+import torchvision.transforms as T
 from torch.utils.data import DataLoader, random_split
 import torchvision
 import torch
@@ -6,26 +6,23 @@ import os
 import matplotlib.pyplot as plt
 from dataset import FDataset, collate
 from models import BaselineRNN
-from utils import get_device
+from utils import get_device, save_model, load_model
 import time
 
 
-def train(epoch=10, batch_size=64, lr=0.002):
+MODEL_PATH = "model_weights.torch"
+
+
+def train(epochs=10, batch_size=64, lr=0.0003):
     device = get_device()
     BASE_DIR = f"{os.getcwd()}/data/flickr8k"
 
-    
-
-    img_transform = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-        transforms.Lambda(lambda x: x.to(device))
+    img_transform = T.Compose([
+        T.Resize((224, 224)),
+        T.ToTensor(),
+        T.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+        T.Lambda(lambda x: x.to(device))
     ])
-
-    # caption_transform = transforms.Compose([
-    #     transforms.ToTensor(),
-    #     transforms.Lambda(lambda x: x.to(device))
-    # ])
 
     dataset = FDataset(
         root_dir=BASE_DIR + "/Images",
@@ -52,10 +49,11 @@ def train(epoch=10, batch_size=64, lr=0.002):
     # )
 
     print("vocab_size:", dataset.vocab_size)
-    model = BaselineRNN(400, dataset.vocab_size, torchvision.models.VGG16_Weights.IMAGENET1K_FEATURES, 3).to(device)
+    model = BaselineRNN(400, dataset.vocab_size, 3000, torchvision.models.VGG16_Weights.IMAGENET1K_FEATURES, 3, 1).to(
+        device)
     model.train()
     model.img_encoder.freeze_param()
-    optimizer = torch.optim.Adam(model.parameters(), lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr, weight_decay=0.001)
     criteria = torch.nn.CrossEntropyLoss(ignore_index=1)
 
     loss_history = []
@@ -68,41 +66,52 @@ def train(epoch=10, batch_size=64, lr=0.002):
     fig.show()
     fig.canvas.draw()
     last_time = time.time()
-    for e in range(epoch):
-        for b, (imgs, captions) in enumerate(train_loader):
-            #imgs = imgs.to(device)
-            #captions = captions.to(device)
-            print("done")
-            optimizer.zero_grad()
+    epoch, _, _ = load_model(MODEL_PATH, model, optimizer)
 
-            #b_size = len(captions)
-            captions = captions[:, 1:]
-            model.decoder.set_target_captions(captions)
-            captions_softmaxs = model(imgs)
-            #output = captions_softmaxs.reshape((-1, captions_softmaxs.shape[-1]))
-            target = captions.reshape(-1)
+    try:
+        for e in range(epoch, epochs):
+            for b, (imgs, captions) in enumerate(train_loader):
+                # print("done")
+                optimizer.zero_grad()
 
-            #print(output.shape, "computing loss...", end="")
-            loss = criteria(captions_softmaxs.view(-1, dataset.vocab_size), target)
-            #print("done")
-            loss_history.append(loss.item())
-            print("computing gradient...", end="")
-            loss.backward()
-            print("done")
-            print("updating parameters...", end="")
-            optimizer.step()
-            print("done")
-            print(f"epoch {e}: {b},\tloss = {loss.item()}")  # loss={round(loss.item(), 3)}
-            ax.clear()
-            ax.plot(loss_history)
-            fig.canvas.draw()
-            
-            now = time.time()
-            print("took", round(now - last_time,3), "seconds\n")
-            last_time = now
-            
-            print("loading next batch...", end="")
-            model.train()
+                captions_softmaxs = model(imgs, captions)
+                # print("captions_softmaxs.shape:", captions_softmaxs.shape)
+                # output = captions_softmaxs.view(-1, dataset.vocab_size)
+                # target = captions.reshape(-1)
+
+                # print("computing loss...", end="")
+                # loss = criteria(output, target)
+                loss = 0
+                for w in range(captions.shape[1]):
+                    output = captions_softmaxs[w, :, :]
+                    target = captions[:, w]
+                    loss += criteria(output, target)
+                loss = loss / (w + 1)
+                # print("done")
+                loss_history.append(loss.item())
+                # print("computing gradient...", end="")
+                loss.backward()
+                # print("done")
+                # print("updating parameters...", end="")
+                optimizer.step()
+                # print("done")
+                ax.clear()
+                ax.plot(loss_history)
+                fig.canvas.draw()
+
+                now = time.time()
+                print(f"\repoch {e}: {b} loss={round(loss.item(), 4)}. Took {round(now - last_time, 3)} seconds.")  # loss={round(loss.item(), 4)}
+                last_time = now
+
+                # print("loading next batch...", end="")
+                model.train()
+    except:
+        save_model(e, b, model, optimizer, loss, MODEL_PATH)
+        raise
+
+    # model.generate_captions(imgs)
+    # texts = dataset.tokenizer.sequences_to_texts([[5, 2, 7, 9, 3], [10, 24, 543, 2, 6, 8]])
+    # print(texts)
 
 
 if __name__ == "__main__":
