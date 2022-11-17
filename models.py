@@ -96,7 +96,7 @@ class Decoder(nn.Module):
             h, c = self.lstm_cell(embeddings[:, w, :], (h, c))
             token_softmaxs.append(h)
 
-        return torch.stack(token_softmaxs, dim=0)
+        return torch.stack(token_softmaxs, dim=0).to(get_device())
 
     def init_hidden(self, features):
         return self.init_h(features), self.init_c(features)

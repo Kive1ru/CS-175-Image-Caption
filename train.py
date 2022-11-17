@@ -13,15 +13,14 @@ import time
 MODEL_PATH = "model_weights.torch"
 
 
-def train(epochs=10, batch_size=64, lr=0.0003):
+def train(epochs=10, batch_size=64, lr=0.0002):
     device = get_device()
     BASE_DIR = f"{os.getcwd()}/data/flickr8k"
 
     img_transform = T.Compose([
         T.Resize((224, 224)),
         T.ToTensor(),
-        T.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
-        T.Lambda(lambda x: x.to(device))
+        T.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
     ])
 
     dataset = FDataset(
@@ -72,6 +71,9 @@ def train(epochs=10, batch_size=64, lr=0.0003):
         for e in range(epoch, epochs):
             for b, (imgs, captions) in enumerate(train_loader):
                 # print("done")
+                imgs = imgs.to(device)
+                captions = captions.to(device)
+                print("captions.shape:", captions.shape)
                 optimizer.zero_grad()
 
                 captions_softmaxs = model(imgs, captions)
@@ -106,7 +108,7 @@ def train(epochs=10, batch_size=64, lr=0.0003):
                 # print("loading next batch...", end="")
                 model.train()
     except:
-        save_model(e, b, model, optimizer, loss, MODEL_PATH)
+        # save_model(e, b, model, optimizer, loss, MODEL_PATH)
         raise
 
     # model.generate_captions(imgs)
