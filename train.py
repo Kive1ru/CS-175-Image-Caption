@@ -50,7 +50,7 @@ def train(epochs=10, batch_size=64, lr=0.0003):
 
     print("vocab_size:", dataset.vocab_size)
     print(f"training on {device} with lr={lr}")
-    model = BaselineRNN(300, 512, dataset.tokenizer, 2048, torchvision.models.VGG16_Weights.IMAGENET1K_FEATURES).to(device)
+    model = BaselineRNN(300, 512, dataset.tokenizer, 25088, torchvision.models.VGG16_Weights.IMAGENET1K_FEATURES).to(device)
     model.train()
     model.img_encoder.freeze_param()
     optimizer = torch.optim.Adam(model.parameters(), lr, weight_decay=0.001)

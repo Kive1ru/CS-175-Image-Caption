@@ -14,10 +14,13 @@ class VGG16ImageEncoder(nn.Module):
         self.model = torchvision.models.vgg16(weights=weights)
 
         # modify the last predict layer to output the desired dimension
-        # self.model.classifier[6] = nn.Sequential(
-        #     nn.Linear(self.model.classifier[6].in_features, out_size),
-        #     nn.Tanh()
-        # )
+        self.model.classifier = nn.Sequential(
+            nn.BatchNorm1d(25088),
+            nn.Linear(25088, 10000),
+            nn.Tanh(),
+            nn.Linear(10000, out_size),
+            nn.Tanh()
+        )
 
 
     def freeze_param(self):
@@ -25,9 +28,8 @@ class VGG16ImageEncoder(nn.Module):
             param.requires_grad = False
 
     def forward(self, x):
-        print("entered ImageEncoder forward")
         out = self.model.features(x).reshape((x.shape[0], -1))
-        print("out.shape:", out.shape)
+        out = self.model.classifier(out)
         return out
 
 
@@ -120,9 +122,7 @@ class BaselineRNN(nn.Module):
         self.decoder = Decoder(embed_dim, hidden_size, tokenizer, feature_dim)
 
     def forward(self, x, captions):
-        print("encoding img")
         features = self.img_encoder(x)
-        print("decoding features")
         return self.decoder(features, captions)
 
     def predict(self, x):
