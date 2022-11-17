@@ -7,6 +7,8 @@ import torchvision.transforms as transforms
 import numpy as np
 import torch
 from utils import get_device
+from torch.nn.utils.rnn import pad_sequence
+
 
 
 class FDataset(Dataset):
@@ -32,8 +34,7 @@ class FDataset(Dataset):
         img = Image.open(img_location)
         if self.transform is not None:
             img = self.transform(img)
-
-        return img, self.tokenizer.texts_to_sequences([caption])[0]
+        return img, torch.tensor(self.tokenizer.texts_to_sequences([caption])[0])
 
     def clean_data(self):
         for i in range(len(self.captions)):
@@ -50,14 +51,16 @@ def collate(batch):
         imgs.append(item[0].unsqueeze(0))
         caps.append(item[1])
     imgs = torch.cat(imgs,dim=0)
-    caps = tf.keras.preprocessing.sequence.pad_sequences(caps, padding='post', value=1)
-    #caps = pad_sequence(caps,batch_first=False,padding_value=1)
-    return imgs, torch.from_numpy(caps).to(device=get_device(), dtype=torch.long)
+    caps = pad_sequence(caps,batch_first=True,padding_value=1)
+    return imgs, caps
+    #caps = tf.keras.preprocessing.sequence.pad_sequences(caps, padding='post', value=1)
+    #return imgs, torch.from_numpy(caps).to(device=get_device(), dtype=torch.long)
+
 
 
         
-
-'''if __name__ == "__main__":
+'''
+if __name__ == "__main__":
     BASE_DIR = f"{os.getcwd()}/data/flickr8k"
     transformer = transforms.Compose(
         [transforms.Resize((224, 224)),
@@ -67,7 +70,6 @@ def collate(batch):
         capFilename = BASE_DIR+"/captions.txt",
         transform=transformer
     )
-    print(dataset.tokenizer.sequences_to_texts([[0,1,2,3,4]]))
     dataloader = DataLoader(
         dataset=dataset,
         batch_size=100,
@@ -79,4 +81,3 @@ def collate(batch):
         print(len(i[0]),len(i[1]))
         break
 '''
-
