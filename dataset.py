@@ -1,4 +1,5 @@
 import os
+import string
 import pandas as pd
 from torch.utils.data import DataLoader,Dataset
 import tensorflow as tf
@@ -39,9 +40,10 @@ class FDataset(Dataset):
     def clean_data(self):
         for i in range(len(self.captions)):
             caption = self.captions[i]
+            caption = caption.translate(str.maketrans('','',string.punctuation))
             caption = caption.split()
-            caption = [word.lower() for word in caption]
-            self.captions[i] = "startseq " + ' '.join(caption) + " endseq"
+            caption = [word.lower() for word in caption if (len(word)>1 and word.isalpha())]
+            self.captions[i] = "<startseq> " + ' '.join(caption) + " <endseq>"
 
 
 def collate(batch):

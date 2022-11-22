@@ -29,6 +29,8 @@ def train(epochs=10, batch_size=64, lr=0.0003):
         capFilename=BASE_DIR + "/captions.txt",
         transform=img_transform
     )
+    print("check the data")
+    print(dataset)
 
     train_test_ratio = [0.7, 0.28, 0.02]
     generator = torch.Generator().manual_seed(0)  # fix the seed for random_split
