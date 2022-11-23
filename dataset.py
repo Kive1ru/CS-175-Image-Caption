@@ -20,9 +20,12 @@ class FDataset(Dataset):
         self.imgs = self.df["image"]
         self.captions = self.df["caption"]
         self.clean_data()
-        self.tokenizer = tf.keras.preprocessing.text.Tokenizer(oov_token="<PAD>")
+        self.tokenizer = tf.keras.preprocessing.text.Tokenizer(oov_token="<UNK>", lower=False, filters='')
         self.tokenizer.fit_on_texts(self.captions)
+        self.tokenizer.word_index['<PAD>'] = 0
+        self.tokenizer.index_word[0] = '<PAD>'
         self.vocab_size = len(self.tokenizer.word_index)+1
+
 
     def __len__(self):
         return len(self.df)
@@ -35,13 +38,13 @@ class FDataset(Dataset):
         if self.transform is not None:
             img = self.transform(img)
         return img, torch.tensor(self.tokenizer.texts_to_sequences([caption])[0])
-
+ 
     def clean_data(self):
         for i in range(len(self.captions)):
             caption = self.captions[i]
             caption = caption.split()
-            caption = [word.lower() for word in caption]
-            self.captions[i] = "startseq " + ' '.join(caption) + " endseq"
+            caption = [word.lower() for word in caption if len(word)>1 and word.isalpha()]
+            self.captions[i] = "<SOS> " + ' '.join(caption) + " <EOS>"
 
 
 def collate(batch):
@@ -50,16 +53,12 @@ def collate(batch):
     for item in batch:
         imgs.append(item[0].unsqueeze(0))
         caps.append(item[1])
-    imgs = torch.cat(imgs,dim=0)
-    caps = pad_sequence(caps,batch_first=True,padding_value=1)
+    imgs = torch.cat(imgs, dim=0)
+    caps = pad_sequence(caps, batch_first=True, padding_value=0)
     return imgs, caps
-    #caps = tf.keras.preprocessing.sequence.pad_sequences(caps, padding='post', value=1)
-    #return imgs, torch.from_numpy(caps).to(device=get_device(), dtype=torch.long)
-
-
 
         
-'''
+
 if __name__ == "__main__":
     BASE_DIR = f"{os.getcwd()}/data/flickr8k"
     transformer = transforms.Compose(
@@ -70,14 +69,19 @@ if __name__ == "__main__":
         capFilename = BASE_DIR+"/captions.txt",
         transform=transformer
     )
+    #print(dataset[0][1].tolist())
+    #print(dataset.tokenizer.sequences_to_texts([dataset[0][1].tolist()]))
+    print(dataset.tokenizer.index_word)
+    print(dataset.tokenizer.index_word[0])
+    print(dataset.tokenizer.index_word[1])
     dataloader = DataLoader(
         dataset=dataset,
         batch_size=100,
         shuffle=True,
         collate_fn=collate
     )
-    for i in dataloader:
-        print(i)
-        print(len(i[0]),len(i[1]))
+    '''for i in dataloader:
+        print(i[1])
+        #print(len(i[0]),len(i[1]))
         break
-'''
+        '''
