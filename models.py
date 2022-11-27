@@ -95,30 +95,6 @@ class Decoder(nn.Module):
         c = c.reshape((b_size, self.hidden_size, self.num_layers)).transpose(0, 2).transpose(1, 2)
         return h, c
 
-    # def predict(self, features, max_token_num=35):
-    #     b_size = features.shape[0]
-    #     token_softmaxs = []  # token_softmaxs = torch.zeros((captions.shape[1], b_size, self.vocab_size)).to(get_device())
-    #     h, c = self.init_hidden(features)
-    #     SOS_token = torch.Tensor(self.tokenizer.texts_to_sequences([["startseq" for _ in range(b_size)]])[0]).to(dtype=int, device=get_device())
-    #     prev_embeddings = self.text_encoder(SOS_token)
-    #     sentences = None
-    #
-    #     for w in range(max_token_num):
-    #         h, c = self.lstm(prev_embeddings, (h, c))
-    #         out = self.fc(h)
-    #         new_words = out.argmax(dim=1)
-    #         prev_embeddings = self.text_encoder(new_words)
-    #         new_words = new_words.reshape((out.shape[0], 1))
-    #         if sentences is None:
-    #             sentences = new_words
-    #         else:
-    #             sentences = torch.cat((sentences, new_words), dim=1)
-    #
-    #         # if every sentence has reached end of sentence, break
-    #         if (sentences == self.EOS_token).any(dim=1).to(torch.float32).mean() == 1:
-    #             break
-    #     return sentences
-
     def predict(self, features, max_token_num=35):
         h, c = self.init_hidden(features)
         SOS_token = torch.Tensor([self.tokenizer.word_index['<SOS>']]).to(dtype=int, device=get_device())

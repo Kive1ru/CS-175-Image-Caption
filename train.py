@@ -53,7 +53,7 @@ def train(epochs=10, batch_size=128, lr=0.0003, num_layers=3):
     model = BaselineRNN(300, 512, num_layers, dataset.tokenizer, 2048,
                         torchvision.models.ResNet50_Weights.IMAGENET1K_V2).to(device)
     model.train()
-    # model.img_encoder.freeze_param()
+    model.img_encoder.freeze_param()
     optimizer = torch.optim.Adam(model.parameters(), lr, weight_decay=0.001)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
     criteria = torch.nn.CrossEntropyLoss(ignore_index=dataset.tokenizer.word_index['<PAD>'])
