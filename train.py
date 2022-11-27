@@ -14,7 +14,7 @@ import time
 MODEL_PATH = "model_weights.torch"
 
 
-def train(epochs=10, batch_size=64, lr=0.0003):
+def train(epochs=10, batch_size=128, lr=0.0003, num_layers=3):
     device = get_device()
     BASE_DIR = f"{os.getcwd()}/data/flickr8k"
 
@@ -37,25 +37,26 @@ def train(epochs=10, batch_size=64, lr=0.0003):
     train_loader = DataLoader(
         dataset=train_set,
         batch_size=batch_size,
-        shuffle=False,
+        shuffle=True,
         collate_fn=collate
     )
 
     test_loader = DataLoader(
         dataset=test_set,
         batch_size=batch_size,
-        shuffle=False,
+        shuffle=True,
         collate_fn=collate
     )
 
     print("vocab_size:", dataset.vocab_size)
     print(f"training on {device} with lr={lr}")
-    model = BaselineRNN(300, 512, dataset.tokenizer, 2048, torchvision.models.VGG16_Weights.IMAGENET1K_FEATURES).to(device)
+    model = BaselineRNN(300, 512, num_layers, dataset.tokenizer, 2048,
+                        torchvision.models.ResNet50_Weights.IMAGENET1K_V2).to(device)
     model.train()
-    model.img_encoder.freeze_param()
+    # model.img_encoder.freeze_param()
     optimizer = torch.optim.Adam(model.parameters(), lr, weight_decay=0.001)
-    # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
-    criteria = torch.nn.CrossEntropyLoss(ignore_index=1)
+    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
+    criteria = torch.nn.CrossEntropyLoss(ignore_index=dataset.tokenizer.word_index['<PAD>'])
 
     loss_history = []
     fig = plt.figure()  # figsize=(5, 3)
@@ -70,11 +71,11 @@ def train(epochs=10, batch_size=64, lr=0.0003):
     try:
         for e in range(epochs):
             for b, (imgs, captions) in enumerate(train_loader):
-                print("done")
+                # print("done")
                 imgs = imgs.to(device)
                 captions = captions.to(device)
                 optimizer.zero_grad()
-                captions_softmaxs = model(imgs, captions)
+                captions_softmaxs = model(imgs, captions[:, :-1])
                 # print("computing loss...", end="")
                 loss = 0
 
@@ -103,12 +104,13 @@ def train(epochs=10, batch_size=64, lr=0.0003):
                 # validate
                 if b % 100 == 0:
                     model.eval()
-                    generate_captions(model, test_loader, dataset.tokenizer)
+                    generate_captions(model, test_loader, dataset.tokenizer, e, b)
 
                 # print("loading next batch...", end="")
                 model.train()
-            # scheduler.step()
+            scheduler.step()
             save_model(epochs, model, optimizer, loss, f"model_weights/caption_{e}.torch")
+        fig.savefig("figs/loss.png")
     except:
         # save_model(e, b, model, optimizer, loss, MODEL_PATH)
         raise
