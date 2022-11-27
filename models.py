@@ -91,8 +91,8 @@ class Decoder(nn.Module):
     def init_hidden(self, features):
         b_size = features.shape[0]
         h, c = self.init_h(features), self.init_c(features)
-        h = h.reshape((b_size, self.hidden_size, self.num_layers)).transpose(0, 2).transpose(1, 2)
-        c = c.reshape((b_size, self.hidden_size, self.num_layers)).transpose(0, 2).transpose(1, 2)
+        h = h.reshape((b_size, self.hidden_size, self.num_layers)).transpose(0, 2).contiguous().transpose(1, 2).contiguous()
+        c = c.reshape((b_size, self.hidden_size, self.num_layers)).transpose(0, 2).contiguous().transpose(1, 2).contiguous()
         return h, c
 
     def predict(self, features, max_token_num=35):
