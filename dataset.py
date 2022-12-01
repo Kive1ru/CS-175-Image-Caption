@@ -12,18 +12,18 @@ from torch.nn.utils.rnn import pad_sequence
 
 class FDataset(Dataset):
 
-    def __init__(self, root_dir, capFilename, transform=None):
+    def __init__(self, root_dir, capFilename, transform=None, num_words=5074):
         self.root_dir = root_dir
         self.df = pd.read_csv(capFilename)
         self.transform = transform
         self.imgs = self.df["image"]
         self.captions = self.df["caption"]
         self.clean_data()
-        self.tokenizer = tf.keras.preprocessing.text.Tokenizer(oov_token="<UNK>", lower=False, filters='')
+        self.tokenizer = tf.keras.preprocessing.text.Tokenizer(oov_token="<UNK>", num_words=num_words, lower=False, filters='')
         self.tokenizer.fit_on_texts(self.captions)
         self.tokenizer.word_index['<PAD>'] = 0
         self.tokenizer.index_word[0] = '<PAD>'
-        self.vocab_size = len(self.tokenizer.word_index) + 1
+        self.vocab_size = num_words + 1  # len(self.tokenizer.word_index) + 1  #
 
     def __len__(self):
         return len(self.df)
