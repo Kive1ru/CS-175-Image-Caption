@@ -3,11 +3,28 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as transforms
+import tensorflow as tf
+import seaborn as sns
+from collections import Counter
+# from 
+from tensorflow.python.keras.models import Model
+
+# from tensorflow.keras.applications.inception_v3 import InceptionV3
+# from tensorflow.keras.models import Model
+# from tensorflow.keras import layers
+# from tensorflow.keras import activations
+# from tensorflow.keras import Input
+
 from PIL import Image
 from pathlib import Path
 from utils import get_device
 import tensorflow as tf
 import keras
+from keras.models import Model
+from keras import layers
+from keras import activations
+from keras import Input
+
 from tqdm import tqdm
 
 from nltk.translate.bleu_score import sentence_bleu
@@ -147,7 +164,16 @@ from sklearn.utils import shuffle
 #         out = self.cls(g_hat)
 
 #         return [out, a1, a2]
-    
+
+class Encoder(Model):
+    def __init__(self,embed_dim):
+        super(Encoder, self).__init__()
+        self.dense = tf.keras.layers.Dense(embed_dim)
+    def call(self,features):
+        features = self.desne(features)
+        features = tf.keras.activations.relu(features, alpha=0.01, max_value=None, threshold=0)
+
+
 class TextEncoder(nn.Module):
     def __init__(self, vocab_size, embed_dim, padding_idx) -> None:
         super(TextEncoder, self).__init__()
@@ -165,36 +191,38 @@ class TextEncoder(nn.Module):
 #         self.U = nn.Linear(encoder_dim,attention_dim)
 #         self.A = nn.Linear(attention_dim,1)
 
-class Decoder(nn.Module):
-    def __init__(self, embed_dim, hidden_size, tokenizer, feature_dim):
-        super(Decoder, self).__init__()
-        self.embed_dim = embed_dim
-        self.tokenizer = tokenizer
-        self.vocab_size = len(tokenizer.word_index)
-        self.EOS_token = tokenizer.texts_to_sequences(["endseq"])[0][0]
-        self.text_encoder = TextEncoder(self.vocab_size, embed_dim, tokenizer.texts_to_sequences(["<PAD>"])[0][0])
-        self.init_h = nn.Linear(feature_dim, hidden_size)
-        self.init_c = nn.Linear(feature_dim, hidden_size)
-        self.lstm_cell = nn.LSTMCell(embed_dim, hidden_size, bias=True)
-        self.fc = nn.Sequential(
-            nn.Linear(hidden_size, self.vocab_size, bias=True),
-            nn.Sigmoid()
-        )
+class Decoder()
 
-    def forward(self, features, captions):
-        b_size = captions.shape[0]
-        token_softmaxs = []
-        h, c = self.init_hidden(features)
-        embeddings = self.text_encoder(captions)
-        for w in range(captions.shape[1]):
-            h, c = self.lstm_cell(embeddings[:, w, :], (h, c))
-            out = self.fc(h)
-            token_softmaxs.append(out)
+# class Decoder(nn.Module):
+#     def __init__(self, embed_dim, hidden_size, tokenizer, feature_dim):
+#         super(Decoder, self).__init__()
+#         self.embed_dim = embed_dim
+#         self.tokenizer = tokenizer
+#         self.vocab_size = len(tokenizer.word_index)
+#         self.EOS_token = tokenizer.texts_to_sequences(["endseq"])[0][0]
+#         self.text_encoder = TextEncoder(self.vocab_size, embed_dim, tokenizer.texts_to_sequences(["<PAD>"])[0][0])
+#         self.init_h = nn.Linear(feature_dim, hidden_size)
+#         self.init_c = nn.Linear(feature_dim, hidden_size)
+#         self.lstm_cell = nn.LSTMCell(embed_dim, hidden_size, bias=True)
+#         self.fc = nn.Sequential(
+#             nn.Linear(hidden_size, self.vocab_size, bias=True),
+#             nn.Sigmoid()
+#         )
 
-        return torch.stack(token_softmaxs, dim=0).to(get_device())
+#     def forward(self, features, captions):
+#         b_size = captions.shape[0]
+#         token_softmaxs = []
+#         h, c = self.init_hidden(features)
+#         embeddings = self.text_encoder(captions)
+#         for w in range(captions.shape[1]):
+#             h, c = self.lstm_cell(embeddings[:, w, :], (h, c))
+#             out = self.fc(h)
+#             token_softmaxs.append(out)
 
-    def init_hidden(self, features):
-        return self.init_h(features), self.init_c(features)
+#         return torch.stack(token_softmaxs, dim=0).to(get_device())
+
+#     def init_hidden(self, features):
+#         return self.init_h(features), self.init_c(features)
 
     # def predict(self, features, max_token_num=35):
     #     b_size = features.shape[0]
