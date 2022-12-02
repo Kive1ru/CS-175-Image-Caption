@@ -5,7 +5,7 @@ import torch
 import os
 import matplotlib.pyplot as plt
 from dataset import FDataset, collate
-from models import BaselineRNN
+from models import BaselineRNN, Img2Cap
 from utils import get_device, save_model, load_model
 from eval import generate_captions
 import time
@@ -30,7 +30,7 @@ def train(epochs=10, batch_size=128, lr=0.0003, num_layers=3):
         capFilename=BASE_DIR + "/captions.txt",
         transform=img_transform
     )
-    # print(type(dataset.tokenizer.word_counts), sum(1 for k, v in dataset.tokenizer.word_counts.items() if v > 1))
+    # print(type(dataset.tokenizer.word_counts), dataset.tokenizer.sequences_to_texts([[0,1,2,3]]))
     # print(dataset.tokenizer.sequences_to_texts(dataset.tokenizer.texts_to_sequences(["this is me lifting weight"])))
     # assert False
     train_test_ratio = [6000*5, 2091*5]
@@ -55,8 +55,9 @@ def train(epochs=10, batch_size=128, lr=0.0003, num_layers=3):
 
     print("vocab_size:", dataset.vocab_size)
     print(f"training on {device} with lr={lr}")
-    model = BaselineRNN(300, 512, num_layers, dataset.tokenizer, 2048,
-                        torchvision.models.ResNet50_Weights.IMAGENET1K_V2).to(device)
+    # model = BaselineRNN(300, 512, num_layers, dataset.tokenizer, 2048,
+    #                     torchvision.models.ResNet50_Weights.IMAGENET1K_V2).to(device)
+    model = Img2Cap(dataset.tokenizer, 400, torchvision.models.ResNet50_Weights.IMAGENET1K_V2).to(device)
     model.train()
     model.img_encoder.freeze_param()
     optimizer = torch.optim.Adam(model.parameters(), lr, weight_decay=0.001)
@@ -80,13 +81,13 @@ def train(epochs=10, batch_size=128, lr=0.0003, num_layers=3):
                 imgs = imgs.to(device)
                 captions = captions.to(device)
                 optimizer.zero_grad()
-                captions_softmaxs = model(imgs, captions[:, :-1])
+                captions_softmaxs = model(imgs, captions[:, :-1])  # [batch_size, cap_len, vocab_size]
                 # print("computing loss...", end="")
                 loss = 0
 
                 # ignore startseq for loss computation
                 for w in range(captions.shape[1] - 1):
-                    output = captions_softmaxs[w, :, :]
+                    output = captions_softmaxs[:, w, :]
                     target = captions[:, w+1]
                     loss += criteria(output, target)
                 loss = loss / (w + 1)
@@ -103,11 +104,11 @@ def train(epochs=10, batch_size=128, lr=0.0003, num_layers=3):
                 fig.canvas.draw()
 
                 now = time.time()
-                print(f"\repoch {e}: {b} loss={loss.item()}. Took {round(now - last_time, 3)} seconds.")  # loss={round(loss.item(), 4)}
+                print(f"\repoch {e}: {b} loss={loss.detach().item()}. Took {round(now - last_time, 3)} seconds.")  # loss={round(loss.item(), 4)}
                 last_time = now
 
                 # validate
-                if (b+1) % 100 == 0:
+                if (b+1-1) % 100 == 0:
                     model.eval()
                     generate_captions(model, test_loader, dataset.tokenizer, e, b)
 

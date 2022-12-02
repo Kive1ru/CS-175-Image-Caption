@@ -31,6 +31,7 @@ def generate_captions(model, dataloader, tokenizer, epoch, batch, img_num=5):
             if count >= img_num:
                 return
             seq = model.predict(imgs[i].reshape((1, imgs.shape[1], imgs.shape[2], imgs.shape[3])))
+            print("seq:", seq)
             sentence = tokenizer.sequences_to_texts([seq])[0]  # list of strings
             target_sentence = tokenizer.sequences_to_texts(captions[i].reshape((1, captions.shape[1])).cpu().detach().tolist())[0]
             bleu_score = sentence_bleu(target_sentence.split(), sentence.split(), weights=(0.5, 0.5))
@@ -83,7 +84,6 @@ def save_image_caption(img, caption, file_path):
     img = img.transpose((1, 2, 0))
     # R, G, B = img[0], img[1], img[2]
     # img = np.stack((R, G, B), axis=2)
-    print("img.max():", img.max())
 
     plt.ioff()
     fig = plt.figure()  # figsize=(5, 3)
