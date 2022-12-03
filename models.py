@@ -82,7 +82,7 @@ class Img2Cap(nn.Module):
         self.d_model = embed_dim
         self.tokenizer = tokenizer
         self.embed_dim = embed_dim
-        self.vocab_size = tokenizer.num_words + 1
+        self.vocab_size = len(tokenizer.word_index)
         self.img_encoder = ResNetEncoder(ing_encoder_weights, embed_dim)
         self.transformer = nn.Transformer(d_model=self.d_model, nhead=5, batch_first=True)  # embed_dim must be divisible by num_heads
         self.embedding = nn.Embedding(self.vocab_size, embed_dim, padding_idx=tokenizer.word_index["<PAD>"])

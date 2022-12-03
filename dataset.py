@@ -14,7 +14,7 @@ from sklearn.model_selection import train_test_split
 
 class FDataset(Dataset):
 
-    def __init__(self, root_dir, capFilename, transform=None, num_words=5074):
+    def __init__(self, root_dir, capFilename, transform=None, num_words=None):
         self.root_dir = root_dir
         self.df = pd.read_csv(capFilename)
         self.transform = transform
@@ -25,7 +25,7 @@ class FDataset(Dataset):
         self.tokenizer.fit_on_texts(self.captions)
         self.tokenizer.word_index['<PAD>'] = 0
         self.tokenizer.index_word[0] = '<PAD>'
-        self.vocab_size = num_words + 1  # len(self.tokenizer.word_index) + 1  #
+        self.vocab_size = len(self.tokenizer.word_index)  # len(self.tokenizer.word_index) + 1
 
     def __len__(self):
         return len(self.df)
@@ -60,7 +60,7 @@ class TestDataset(Dataset):
         self.tokenizer = tokenizer
 
     def __len__(self):
-        return len(self.df)
+        return len(self.randImg)
     
     def __getitem__(self,idx):
         img_name = self.randImg[idx]
@@ -69,7 +69,7 @@ class TestDataset(Dataset):
         if self.transform is not None:
             img = self.transform(img)
         captionlist = self.capDict[img_name]
-        captionlist = torch.tensor(self.tokenizer.texts_to_sequences(captionlist))
+        captionlist = [torch.tensor(self.tokenizer.texts_to_sequences([cap])[0]) for cap in captionlist]
         return img, captionlist
     
     def clean_data(self):
@@ -105,6 +105,17 @@ def collate(batch):
     caps = pad_sequence(caps, batch_first=True, padding_value=0)
     return imgs, caps
 
+def collate_1(batch):
+    imgs = []
+    caps = []
+    for item in batch:
+        imgs.append(item[0].unsqueeze(0))
+        for i in range(len(item[1])):
+            caps.append(item[1][i])
+    imgs = torch.cat(imgs, dim=0)
+    caps = pad_sequence(caps, batch_first=True, padding_value=0)
+    return imgs, caps
+
 
 if __name__ == "__main__":
     '''
@@ -133,5 +144,5 @@ if __name__ == "__main__":
         #print(len(i[0]),len(i[1]))
         break
         '''
-    splitDataset()
+    # splitDataset()
         
