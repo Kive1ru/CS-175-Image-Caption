@@ -8,6 +8,8 @@ import numpy as np
 import torch
 from utils import get_device
 from torch.nn.utils.rnn import pad_sequence
+import numpy as np
+from sklearn.model_selection import train_test_split
 
 
 class FDataset(Dataset):
@@ -45,6 +47,54 @@ class FDataset(Dataset):
             self.captions[i] = "<SOS> " + ' '.join(caption) + " <EOS>"
 
 
+class TestDataset(Dataset):
+    def __init__(self, root_dir, capFilename, transform=None, tokenizer=None):
+        self.root_dir = root_dir
+        self.df = pd.read_csv(capFilename)
+        self.transform = transform
+        self.imgs = self.df["image"]
+        self.captions = self.df["caption"]
+        self.randImg = list(set(self.imgs))
+        self.capDict = {}
+        self.clean_data()
+        self.tokenizer = tokenizer
+
+    def __len__(self):
+        return len(self.df)
+    
+    def __getitem__(self,idx):
+        img_name = self.randImg[idx]
+        img_location = os.path.join(self.root_dir,img_name)
+        img = Image.open(img_location)
+        if self.transform is not None:
+            img = self.transform(img)
+        captionlist = self.capDict[img_name]
+        captionlist = torch.tensor(self.tokenizer.texts_to_sequences(captionlist))
+        return img, captionlist
+    
+    def clean_data(self):
+        for i in range(len(self.captions)):
+            caption = self.captions[i]
+            caption = caption.split()
+            caption = [word.lower() for word in caption if len(word)>1 and word.isalpha()]
+            self.captions[i] = "<SOS> " + ' '.join(caption) + " <EOS>"
+            if self.imgs[i] not in self.capDict:
+                self.capDict[self.imgs[i]] = [self.captions[i]]
+            else:
+                self.capDict[self.imgs[i]].append(self.captions[i])
+
+
+def splitDataset():
+    BASE_DIR = f"{os.getcwd()}/data/flickr8k"
+    capFilename = BASE_DIR + "/captions.txt"
+    df = pd.read_csv(capFilename)
+    #imgs = np.array(df["image"])
+    #train, test = train_test_split(imgs, test_size=0.75)
+    train, test = train_test_split(df, test_size=0.3, shuffle=False)
+    train.to_csv(BASE_DIR + "/train.csv", index=False)
+    test.to_csv(BASE_DIR + "/test.csv", index=False)
+
+
 def collate(batch):
     imgs = []
     caps = []
@@ -57,6 +107,7 @@ def collate(batch):
 
 
 if __name__ == "__main__":
+    '''
     BASE_DIR = f"{os.getcwd()}/data/flickr8k"
     transformer = transforms.Compose(
         [transforms.Resize((224, 224)),
@@ -77,8 +128,10 @@ if __name__ == "__main__":
         shuffle=True,
         collate_fn=collate
     )
-    '''for i in dataloader:
+    for i in dataloader:
         print(i[1])
         #print(len(i[0]),len(i[1]))
         break
         '''
+    splitDataset()
+        
