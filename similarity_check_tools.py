@@ -13,7 +13,8 @@ class similarity_check_tool():
         sentscore = sentscore.tolist()
         print(sentscore[0])
         bestind = sentscore[0].index(max(sentscore[0]))
-        print("most similar sentence[",wfpsentences[bestind+1], "]  similarity score:[",round(max(sentscore[0])*100,2),"%]")
+        return (bestind+1,max(sentscore[0]))
+        # print("most similar sentence[",wfpsentences[bestind+1], "]  similarity score:[",round(max(sentscore[0])*100,2),"%]")
         # _, ind = sentscore.where(arr == max(sentscore[0]))
         # print(sentscore)
 
