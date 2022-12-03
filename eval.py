@@ -1,12 +1,11 @@
-import torchvision
 import torch
 import matplotlib.pyplot as plt
 import numpy as np
-import torch.nn as nn
 from PIL import Image
 from pathlib import Path
 from utils import get_device
 from nltk.translate.bleu_score import sentence_bleu
+import re
 
 
 def evaluate_model(model, description, pictures, tokenizer, max_cap):
@@ -32,9 +31,9 @@ def generate_captions(model, dataloader, tokenizer, epoch, batch, img_num=5):
                 return
             seq = model.predict(imgs[i].reshape((1, imgs.shape[1], imgs.shape[2], imgs.shape[3])))
             print("seq:", seq)
-            sentence = tokenizer.sequences_to_texts([seq])[0]  # list of strings
-            target_sentence = tokenizer.sequences_to_texts(captions[i].reshape((1, captions.shape[1])).cpu().detach().tolist())[0]
-            bleu_score = sentence_bleu(target_sentence.split(), sentence.split(), weights=(0.5, 0.5))
+            sentence = beautify(tokenizer.sequences_to_texts([seq])[0])  # list of strings
+            target_sentence = beautify(tokenizer.sequences_to_texts(captions[i].reshape((1, captions.shape[1])).cpu().detach().tolist())[0])
+            bleu_score = sentence_bleu([target_sentence.split()], sentence.split(), weights=(0.5, 0.5))
             print(target_sentence)
             print(sentence)
             print(f"BLEU score diff: {bleu_score}")
@@ -92,3 +91,18 @@ def save_image_caption(img, caption, file_path):
     ax.set_title(caption)
     fig.savefig(file_path)
     plt.ion()
+
+
+def beautify(sentence: str) -> str:
+    ans = re.sub(r' <EOS>( <PAD>)*', '.', sentence)
+    ans = re.sub(r'<SOS> ', '', ans)
+    ans = ans[0].upper() + ans[1:]
+    return ans
+
+if __name__ == "__main__":
+    ngram = 3
+    score = sentence_bleu(["this is".split()], "this is me shouting".split(), [1/ngram for _ in range(ngram)])
+    print(score)
+
+    print(beautify(
+        "<SOS> young man leaps into the water <EOS> <PAD> <PAD> <PAD> <PAD> <PAD> <PAD> <PAD> <PAD> <PAD> <PAD> <PAD> <PAD> <PAD>"))

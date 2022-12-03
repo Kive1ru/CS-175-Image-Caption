@@ -154,15 +154,6 @@ class Img2Cap(nn.Module):
         return token_ids[1:]  # [cap_len]
 
 
-class TextEncoder(nn.Module):
-    def __init__(self, vocab_size, embed_dim, padding_idx) -> None:
-        super(TextEncoder, self).__init__()
-        self.embed1 = nn.Embedding(vocab_size, embed_dim, padding_idx=padding_idx)
-
-    def forward(self, x):
-        return self.embed1(x)
-
-
 class Decoder(nn.Module):
     def __init__(self, embed_dim, hidden_size, num_layers, tokenizer, feature_dim):
         super(Decoder, self).__init__()

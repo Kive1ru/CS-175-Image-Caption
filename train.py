@@ -15,7 +15,7 @@ MODEL_PATH = "model_weights.torch"
 NUM_WORKERS = 4
 
 
-def train(epochs=10, batch_size=128, lr=0.0003, num_layers=3):
+def train(epochs=25, batch_size=128, lr=0.0003, num_layers=3):
     device = get_device()
     BASE_DIR = f"{os.getcwd()}/data/flickr8k"
 
@@ -33,9 +33,9 @@ def train(epochs=10, batch_size=128, lr=0.0003, num_layers=3):
     # print(type(dataset.tokenizer.word_counts), dataset.tokenizer.sequences_to_texts([[0,1,2,3]]))
     # print(dataset.tokenizer.sequences_to_texts(dataset.tokenizer.texts_to_sequences(["this is me lifting weight"])))
     # assert False
-    train_test_ratio = [6000*5, 2091*5]
+    train_test_ratio = [6000*5, 1000*5, 1091*5]
     generator = torch.Generator().manual_seed(0)  # fix the seed for random_split
-    train_set, test_set = random_split(dataset, train_test_ratio, generator=generator)
+    train_set, eval_set, test_set = random_split(dataset, train_test_ratio, generator=generator)
 
     train_loader = DataLoader(
         dataset=train_set,
@@ -64,7 +64,9 @@ def train(epochs=10, batch_size=128, lr=0.0003, num_layers=3):
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
     criteria = torch.nn.CrossEntropyLoss(ignore_index=dataset.tokenizer.word_index['<PAD>'])
 
-    loss_history = []
+    train_losses = []
+    eval_losses = []
+    eval_x_axis = []
     fig = plt.figure()  # figsize=(5, 3)
     ax = fig.add_subplot(111)
     ax.set_xlabel("# batch")
@@ -76,13 +78,13 @@ def train(epochs=10, batch_size=128, lr=0.0003, num_layers=3):
     last_time = time.time()
     try:
         for e in range(epochs):
+            # train
+            model.train()
             for b, (imgs, captions) in enumerate(train_loader):
-                # print("done")
                 imgs = imgs.to(device)
                 captions = captions.to(device)
                 optimizer.zero_grad()
                 captions_softmaxs = model(imgs, captions[:, :-1])  # [batch_size, cap_len, vocab_size]
-                # print("computing loss...", end="")
                 loss = 0
 
                 # ignore startseq for loss computation
@@ -91,31 +93,69 @@ def train(epochs=10, batch_size=128, lr=0.0003, num_layers=3):
                     target = captions[:, w+1]
                     loss += criteria(output, target)
                 loss = loss / (w + 1)
-                # print("done")
-                loss_history.append(loss.item())
-                # print("computing gradient...", end="")
+                train_losses.append(loss.item())
                 loss.backward()
-                # print("done")
-                # print("updating parameters...", end="")
                 optimizer.step()
-                # print("done")
-                ax.clear()
-                ax.plot(loss_history)
-                fig.canvas.draw()
+
 
                 now = time.time()
                 print(f"\repoch {e}: {b} loss={loss.detach().item()}. Took {round(now - last_time, 3)} seconds.")  # loss={round(loss.item(), 4)}
                 last_time = now
 
                 # validate
-                if (b+1-1) % 100 == 0:
+                if (b+1-1) % 10 == 0:
                     model.eval()
                     generate_captions(model, test_loader, dataset.tokenizer, e, b)
 
-                # print("loading next batch...", end="")
+                    eval_loss = 0
+                    for b, (imgs, captions) in enumerate(test_loader):
+                        imgs = imgs.to(device)
+                        captions = captions.to(device)
+                        optimizer.zero_grad()
+                        captions_softmaxs = model(imgs, captions[:, :-1])  # [batch_size, cap_len, vocab_size]
+                        loss = 0
+
+                        # ignore startseq for loss computation
+                        for w in range(captions.shape[1] - 1):
+                            output = captions_softmaxs[:, w, :]
+                            target = captions[:, w + 1]
+                            loss += criteria(output, target)
+                        loss = loss / (w + 1)
+
+                        eval_loss += loss.detach().item()
+                    eval_losses.append(eval_loss / (b + 1))  # only plot a loss for each epoch
+                    eval_x_axis.append(len(train_losses))
+                    print("eval loss:", eval_loss / (b + 1))
+
+                ax.clear()
+                ax.plot(train_losses, 'b', eval_x_axis, eval_losses, 'r')
+                fig.canvas.draw()
+
                 model.train()
+
             scheduler.step()
             save_model(epochs, model, optimizer, loss, f"model_weights/caption_{e}.torch")
+
+            # eval
+            model.eval()
+            eval_loss = 0
+            for b, (imgs, captions) in enumerate(test_loader):
+                imgs = imgs.to(device)
+                captions = captions.to(device)
+                optimizer.zero_grad()
+                captions_softmaxs = model(imgs, captions[:, :-1])  # [batch_size, cap_len, vocab_size]
+                loss = 0
+
+                # ignore startseq for loss computation
+                for w in range(captions.shape[1] - 1):
+                    output = captions_softmaxs[:, w, :]
+                    target = captions[:, w+1]
+                    loss += criteria(output, target)
+                loss = loss / (w + 1)
+
+                eval_loss += loss.detach().item()
+            eval_losses.append(eval_loss / (b + 1))  # only plot a loss for each epoch
+            eval_x_axis.append(len(train_losses))
         fig.savefig("figs/loss.png")
     except:
         # save_model(e, b, model, optimizer, loss, MODEL_PATH)
