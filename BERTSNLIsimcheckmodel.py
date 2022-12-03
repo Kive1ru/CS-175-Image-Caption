@@ -54,6 +54,7 @@ print(train_df.gold_label.value_counts())
 print("Valid Target Distribution")
 print(valid_df.gold_label.value_counts())
 
+print("define some of the label")
 train_df["label"] = train_df["gold_label"].apply(
     lambda x: 0 if x == "contradiction" else 1 if x == "entailment" else 2
 )
@@ -68,6 +69,7 @@ test_df["label"] = test_df["gold_label"].apply(
     lambda x: 0 if x == "contradiction" else 1 if x == "entailment" else 2
 )
 y_test = tf.keras.utils.to_categorical(test_df.label, num_classes=3)
+print("complete some of the label")
 
 class BertSemanticDataGenerator(tf.keras.utils.Sequence):
     """Generates batches of data.
@@ -144,7 +146,7 @@ class BertSemanticDataGenerator(tf.keras.utils.Sequence):
         if self.shuffle:
             np.random.RandomState(42).shuffle(self.indexes)
 
-
+print("set up strategy")
 strategy = tf.distribute.MirroredStrategy()
 
 with strategy.scope():
@@ -215,22 +217,22 @@ history = model.fit(
     workers=-1,
 )
 
-bert_model.trainable = True
-# Recompile the model to make the change effective.
-model.compile(
-    optimizer=tf.keras.optimizers.Adam(1e-5),
-    loss="categorical_crossentropy",
-    metrics=["accuracy"],
-)
-model.summary()
-
-history = model.fit(
-    train_data,
-    validation_data=valid_data,
-    epochs=epochs,
-    use_multiprocessing=True,
-    workers=-1,
-)
+# bert_model.trainable = True
+# # Recompile the model to make the change effective.
+# model.compile(
+#     optimizer=tf.keras.optimizers.Adam(1e-5),
+#     loss="categorical_crossentropy",
+#     metrics=["accuracy"],
+# )
+# model.summary()
+#
+# history = model.fit(
+#     train_data,
+#     validation_data=valid_data,
+#     epochs=epochs,
+#     use_multiprocessing=True,
+#     workers=-1,
+# )
 
 test_data = BertSemanticDataGenerator(
     test_df[["sentence1", "sentence2"]].values.astype("str"),
