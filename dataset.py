@@ -25,7 +25,7 @@ class FDataset(Dataset):
         self.tokenizer.fit_on_texts(self.captions)
         self.tokenizer.word_index['<PAD>'] = 0
         self.tokenizer.index_word[0] = '<PAD>'
-        self.vocab_size = len(self.tokenizer.word_index)  # len(self.tokenizer.word_index) + 1
+        self.vocab_size = len(self.tokenizer.word_index) if num_words is None else num_words + 1
 
     def __len__(self):
         return len(self.df)

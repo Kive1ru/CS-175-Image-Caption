@@ -82,7 +82,7 @@ class Img2Cap(nn.Module):
         self.d_model = embed_dim
         self.tokenizer = tokenizer
         self.embed_dim = embed_dim
-        self.vocab_size = len(tokenizer.word_index)
+        self.vocab_size = len(tokenizer.word_index) if tokenizer.num_words is None else tokenizer.num_words + 1
         self.img_encoder = ResNetEncoder(ing_encoder_weights, embed_dim)
         self.transformer = nn.Transformer(d_model=self.d_model, nhead=5, batch_first=True)  # embed_dim must be divisible by num_heads
         self.embedding = nn.Embedding(self.vocab_size, embed_dim, padding_idx=tokenizer.word_index["<PAD>"])
@@ -163,7 +163,7 @@ class Decoder(nn.Module):
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.EOS_token = tokenizer.word_index['<EOS>']
-        self.text_encoder = TextEncoder(self.vocab_size, embed_dim, tokenizer.word_index['<PAD>'])
+        self.text_encoder = nn.Embedding(self.vocab_size, embed_dim, tokenizer.word_index['<PAD>'])
         self.init_h = nn.Linear(feature_dim, hidden_size * num_layers)
         self.init_c = nn.Linear(feature_dim, hidden_size * num_layers)
         self.lstm = nn.LSTM(embed_dim, hidden_size, num_layers)

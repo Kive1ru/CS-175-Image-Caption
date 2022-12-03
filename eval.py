@@ -37,7 +37,6 @@ def generate_captions(model, dataloader, tokenizer, epoch, batch, img_num=5):
             if count >= img_num:
                 return
             seq = model.predict(imgs[i].reshape((1, imgs.shape[1], imgs.shape[2], imgs.shape[3])))
-            print("seq:", seq)
             sentence = beautify(tokenizer.sequences_to_texts([seq])[0])
             target_sentence = beautify(
                 tokenizer.sequences_to_texts(captions[i].reshape((1, captions.shape[1])).cpu().detach().tolist())[0])
@@ -100,7 +99,8 @@ def experiment():
     dataset = FDataset(
         root_dir=BASE_DIR + "/Images",
         capFilename=BASE_DIR + "/captions.txt",
-        transform=img_transform
+        transform=img_transform,
+        num_words=None
     )
 
     tokenizer = dataset.tokenizer
@@ -129,10 +129,11 @@ def experiment():
             save_image_caption(img[0].cpu().detach().numpy(), sentence, "figures.png")
         except Exception as err:
             print(err)
-            raise
+            # raise
 
 
 if __name__ == "__main__":
+    experiment()
     pass
     # ngram = 3
     # score = sentence_bleu(["this is".split()], "this is me shouting".split(), [1/ngram for _ in range(ngram)])

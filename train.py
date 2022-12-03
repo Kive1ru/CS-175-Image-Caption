@@ -1,3 +1,4 @@
+from torch.nn import LPPool1d
 import torchvision.transforms as T
 from torch.utils.data import DataLoader, random_split
 import torchvision
@@ -13,6 +14,17 @@ import time
 BASE_DIR = f"{os.getcwd()}/data/flickr8k"
 MODEL_PATH = "model_weights.torch"
 NUM_WORKERS = 4
+
+
+def plot_and_save(ax, fig, train_losses, eval_losses, eval_x_axis):
+    ax.clear()
+    ax.plot(train_losses, 'b', label="train")
+    ax.plot(eval_x_axis, eval_losses, 'r', label="eval")
+    ax.set_xlabel("# batch")
+    ax.set_ylabel("loss")
+    ax.legend()
+    fig.canvas.draw()
+    fig.savefig("figs/loss.png")
 
 
 def train(epochs=25, batch_size=128, lr=0.0003, num_layers=3):
@@ -100,23 +112,18 @@ def train(epochs=25, batch_size=128, lr=0.0003, num_layers=3):
                 loss.backward()
                 optimizer.step()
 
-
                 now = time.time()
                 print(f"\repoch {e}: {b} loss={loss.detach().item()}. Took {round(now - last_time, 3)} seconds.")  # loss={round(loss.item(), 4)}
                 last_time = now
 
                 # validate
                 if (b+1) % 100 == 0:
+                    model.eval()
                     generate_captions(model, test_loader, train_set.tokenizer, e, b)
+                    model.train()
 
-                ax.clear()
-                ax.plot(train_losses, 'b', label="train")
-                ax.plot(eval_x_axis, eval_losses, 'r', label="eval")
-                ax.set_xlabel("# batch")
-                ax.set_ylabel("loss")
-                ax.legend()
-                fig.canvas.draw()
-                fig.savefig("figs/loss.png")
+                plot_and_save(ax, fig, train_losses, eval_losses, eval_x_axis)
+            scheduler.step()
 
             # evaluate
             model.eval()
@@ -127,21 +134,21 @@ def train(epochs=25, batch_size=128, lr=0.0003, num_layers=3):
 
                 for i in range(5):
                     captions_softmaxs = model(imgs, captions[i::5, :-1])  # [batch_size, cap_len, vocab_size]
-                    loss = 0
 
                     # ignore startseq for loss computation
                     for w in range(captions.shape[1] - 1):
                         output = captions_softmaxs[:, w, :]
                         target = captions[i::5, w + 1]
-                        loss += criteria(output, target)
-                    loss = loss / (w + 1)
-                    eval_loss.append(loss.detach().item())
+                        l = criteria(output, target)
 
+                        if l.item() == l.item():  # filter out NaN  # TODO: why is it NaN only while trained on CUDA?
+                            eval_loss.append(l.item())
+            
             eval_losses.append(sum(eval_loss) / len(eval_loss))  # only plot a loss for each epoch
             eval_x_axis.append(len(train_losses))
             print("eval loss:", sum(eval_loss) / len(eval_loss))
+            plot_and_save(ax, fig, train_losses, eval_losses, eval_x_axis)
 
-            scheduler.step()
             save_model(epochs, model, optimizer, loss, f"model_weights/caption_{e}.torch")
 
     except:
