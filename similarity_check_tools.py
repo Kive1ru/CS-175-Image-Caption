@@ -11,7 +11,7 @@ class similarity_check_tool():
         sentence_embeddings = self.model.encode(wfpsentences)
         sentscore = cosine_similarity([sentence_embeddings[0]],sentence_embeddings[1:])
         sentscore = sentscore.tolist()
-        print(sentscore[0])
+        # print(sentscore[0])
         bestind = sentscore[0].index(max(sentscore[0]))
         return (bestind+1,max(sentscore[0]))
         # print("most similar sentence[",wfpsentences[bestind+1], "]  similarity score:[",round(max(sentscore[0])*100,2),"%]")
@@ -48,5 +48,5 @@ if __name__ == "__main__":
     sentences2 = [textb0,textb1,textb2,textb3,textb4,textb5]
 
     sentc = similarity_check_tool()
-    sentc.check(sentences1)
-    sentc.check(sentences2)
+    print(sentc.check(sentences1))
+    print(sentc.check(sentences2))
