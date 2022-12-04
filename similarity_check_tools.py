@@ -1,26 +1,26 @@
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
+from utils import get_device
 
 class similarity_check_tool():
     def __init__(self):
-        self.model = SentenceTransformer('bert-base-nli-mean-tokens')
+        self.model = SentenceTransformer('bert-base-nli-mean-tokens', device=get_device())
     
-    def checksentences(self,sentences):
-        wfpsentences = sentences
-        sentence_embeddings = self.model.encode(wfpsentences)
+    def check_sentences(self, sentences):
+        sentence_embeddings = self.model.encode(sentences)
         sentscore = cosine_similarity([sentence_embeddings[0]],sentence_embeddings[1:])
         sentscore = sentscore.tolist()
         # print(sentscore[0])
         bestind = sentscore[0].index(max(sentscore[0]))
         return (bestind+1,max(sentscore[0]))
-        # print("most similar sentence[",wfpsentences[bestind+1], "]  similarity score:[",round(max(sentscore[0])*100,2),"%]")
+        # print("most similar sentence[",sentences[bestind+1], "]  similarity score:[",round(max(sentscore[0])*100,2),"%]")
         # _, ind = sentscore.where(arr == max(sentscore[0]))
         # print(sentscore)
     
-    def checktext(self,gcaption,ecaption):
-        wfpsentence = [gcaption,ecaption]
-        sentence_embeddings = self.model.encode(wfpsentence)
+    def check_text(self, gcaption, ecaption):
+        sentences = [gcaption, ecaption]
+        sentence_embeddings = self.model.encode(sentences)
         sentscore = cosine_similarity([sentence_embeddings[0]],sentence_embeddings[1:])
         sentscore = sentscore.tolist()
         
@@ -56,6 +56,8 @@ if __name__ == "__main__":
     sentences2 = [textb0,textb1,textb2,textb3,textb4,textb5]
 
     sentc = similarity_check_tool()
-    print(sentc.checksentences(sentences1))
-    print(sentc.checksentences(sentences2))
-    print(sentc.checktext("black dog and dog fighting","A black dog and a spotted dog are fighting"))
+    print(sentc.check_sentences(sentences1))
+    print(sentc.check_sentences(sentences2))
+    print(sentc.check_sentences(["this is me", "this is me", "that is me", "this person is me"]))
+    print(sentc.check_sentences(["this is me", "this is not him"]))
+    print(sentc.check_text("black dog and dog fighting", "A black dog and a spotted dog are fighting"))

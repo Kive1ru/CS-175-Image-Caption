@@ -1,4 +1,3 @@
-from torch.nn import LPPool1d
 import torchvision.transforms as T
 from torch.utils.data import DataLoader, random_split
 import torchvision
@@ -21,6 +20,7 @@ def plot_and_save(ax, fig, train_losses, eval_losses, eval_x_axis):
     ax.clear()
     ax.plot(train_losses, 'b', label="train")
     ax.plot(eval_x_axis, eval_losses, 'r', label="eval")
+    ax.set_title("Image Captioning Transformer")
     ax.set_xlabel("# batch")
     ax.set_ylabel("loss")
     ax.legend()
@@ -82,10 +82,11 @@ def train(epochs=25, batch_size=128, lr=0.0003, num_layers=3):
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
     criteria = torch.nn.CrossEntropyLoss(ignore_index=train_set.tokenizer.word_index['<PAD>'])
     
-    similaritytool = similarity_check_tool()
+    similarity_tool = similarity_check_tool()
 
     train_losses = []
     eval_losses = []
+    bleu_scores = []
     eval_x_axis = []
     fig = plt.figure()  # figsize=(5, 3)
     ax = fig.add_subplot(111)
@@ -122,7 +123,7 @@ def train(epochs=25, batch_size=128, lr=0.0003, num_layers=3):
                 # validate
                 if (b+1) % 100 == 0:
                     model.eval()
-                    generate_captions(model, test_loader, train_set.tokenizer, e, b)
+                    generate_captions(model, test_loader, train_set.tokenizer, similarity_tool, f"fig_{e}_{b}", img_num=5)
                     model.train()
 
                 plot_and_save(ax, fig, train_losses, eval_losses, eval_x_axis)
@@ -146,21 +147,27 @@ def train(epochs=25, batch_size=128, lr=0.0003, num_layers=3):
 
                         if l.item() == l.item():  # filter out NaN  # TODO: why is it NaN only while trained on CUDA?
                             eval_loss.append(l.item())
-            
+
             eval_losses.append(sum(eval_loss) / len(eval_loss))  # only plot a loss for each epoch
             eval_x_axis.append(len(train_losses))
-            print("eval loss:", sum(eval_loss) / len(eval_loss))
+            bleu, similarity = generate_captions(model, test_loader, train_set.tokenizer, similarity_tool, f"fig_{e}")
+            bleu_scores.append(bleu)
+            print("eval loss:", sum(eval_loss) / len(eval_loss), "bleu score:", bleu, "similarity:", similarity)
+
             plot_and_save(ax, fig, train_losses, eval_losses, eval_x_axis)
 
             save_model(epochs, model, optimizer, loss, f"model_weights/caption_{e}.torch")
+            torch.save({
+                "eval_losses": eval_losses,
+                "bleu_scores": bleu_scores,
+                "eval_x_axis": eval_x_axis,
+                "train_losses": train_losses
+            }, "loss_info.torch")
 
     except:
         # save_model(e, b, model, optimizer, loss, MODEL_PATH)
         raise
 
-    # model.generate_captions(imgs)
-    # texts = dataset.tokenizer.sequences_to_texts([[5, 2, 7, 9, 3], [10, 24, 543, 2, 6, 8]])
-    # print(texts)
 
 
 if __name__ == "__main__":

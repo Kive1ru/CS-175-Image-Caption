@@ -25,32 +25,44 @@ def evaluate_model(model, description, pictures, tokenizer, max_cap):
 
     print("")
 
-
-def generate_captions(model, dataloader, tokenizer, epoch, batch, img_num=5):
+def generate_captions(model, dataloader, tokenizer, similarity_checker, file_prefix, img_num=None):
+    """
+    Returns the average BLEU score and similarity score over all the image and caption targets in the dataloader.
+    """
     device = get_device()
     model = model.to(device)
     count = 0
+    bleu_scores = []
+    similarities = []
     for imgs, captions in dataloader:
         b_size = captions.shape[0]
         imgs = imgs.to(device)
         for i in range(b_size):
-            if count >= img_num:
+            if img_num is not None and count >= img_num:
                 return
             seq = model.predict(imgs[i].reshape((1, imgs.shape[1], imgs.shape[2], imgs.shape[3])))
             sentence = beautify(tokenizer.sequences_to_texts([seq])[0])
-            target_sentence = beautify(
-                tokenizer.sequences_to_texts(captions[i].reshape((1, captions.shape[1])).cpu().detach().tolist())[0])
-            bleu_score = sentence_bleu([target_sentence.split()], sentence.split(), weights=(0.5, 0.5))
-            print(target_sentence)
-            print(sentence)
-            print(f"BLEU score diff: {bleu_score}")
-            print()
+            target_sentences = [beautify(target_caption) for target_caption in tokenizer.sequences_to_texts(captions[i*5:(i+1)*5].cpu().detach().tolist())]
+
+            ngram = min(4, min(len(s) for s in [sentence] + target_sentences))  # set the largest n-gram to be 4-gram
+            bleu_score = sentence_bleu([s.split() for s in target_sentences], sentence.split(), weights=[1/ngram for _ in range(ngram)])
+            bleu_scores.append(bleu_score)
+
+            similarity = similarity_checker.check_sentences([sentence] + target_sentences)
+            similarities.append(similarity)
+
+            if img_num is not None:
+                print(target_sentences)
+                print(sentence)
+                print(f"BLEU score diff: {bleu_score}")
+                print()
+                save_image_caption(
+                    imgs[i].cpu().detach().numpy(),
+                    sentence + f" BLEU score: {bleu_score}",
+                    f"figs/{file_prefix}{count}.png"
+                )
             count += 1
-            save_image_caption(
-                imgs[i].cpu().detach().numpy(),
-                sentence + f" BLEU score: {bleu_score}",
-                f"figs/fig_{epoch}_{batch}_{count}.png"
-            )
+    return sum(bleu_scores) / len(bleu_scores), sum(similarities) / len(similarities)
 
 
 def save_image_caption(img, caption, file_path=None):
