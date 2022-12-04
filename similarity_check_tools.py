@@ -6,7 +6,7 @@ class similarity_check_tool():
     def __init__(self):
         self.model = SentenceTransformer('bert-base-nli-mean-tokens')
     
-    def check(self,sentences):
+    def checksentences(self,sentences):
         wfpsentences = sentences
         sentence_embeddings = self.model.encode(wfpsentences)
         sentscore = cosine_similarity([sentence_embeddings[0]],sentence_embeddings[1:])
@@ -17,6 +17,14 @@ class similarity_check_tool():
         # print("most similar sentence[",wfpsentences[bestind+1], "]  similarity score:[",round(max(sentscore[0])*100,2),"%]")
         # _, ind = sentscore.where(arr == max(sentscore[0]))
         # print(sentscore)
+    
+    def checktext(self,gcaption,ecaption):
+        wfpsentence = [gcaption,ecaption]
+        sentence_embeddings = self.model.encode(wfpsentence)
+        sentscore = cosine_similarity([sentence_embeddings[0]],sentence_embeddings[1:])
+        sentscore = sentscore.tolist()
+        
+        return (sentscore[0][0])
 
 # def similarity_check(sentences):
 #     wfpsentences = sentences
@@ -48,5 +56,6 @@ if __name__ == "__main__":
     sentences2 = [textb0,textb1,textb2,textb3,textb4,textb5]
 
     sentc = similarity_check_tool()
-    print(sentc.check(sentences1))
-    print(sentc.check(sentences2))
+    print(sentc.checksentences(sentences1))
+    print(sentc.checksentences(sentences2))
+    print(sentc.checktext("black dog and dog fighting","A black dog and a spotted dog are fighting"))
