@@ -10,6 +10,7 @@ from models import BaselineRNN, Img2Cap
 from utils import get_device, save_model, load_model
 from eval import generate_captions
 import time
+from similarity_check_tools import similarity_check_tool
 
 BASE_DIR = f"{os.getcwd()}/data/flickr8k"
 MODEL_PATH = "model_weights.torch"
@@ -80,6 +81,8 @@ def train(epochs=25, batch_size=128, lr=0.0003, num_layers=3):
     optimizer = torch.optim.Adam(model.parameters(), lr, weight_decay=0.001)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
     criteria = torch.nn.CrossEntropyLoss(ignore_index=train_set.tokenizer.word_index['<PAD>'])
+    
+    similaritytool = similarity_check_tool()
 
     train_losses = []
     eval_losses = []
