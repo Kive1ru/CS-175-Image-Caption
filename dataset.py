@@ -95,7 +95,7 @@ def splitDataset():
     test.to_csv(BASE_DIR + "/test.csv", index=False)
 
 
-def collate(batch):
+def collate_train(batch):
     imgs = []
     caps = []
     for item in batch:
@@ -105,7 +105,7 @@ def collate(batch):
     caps = pad_sequence(caps, batch_first=True, padding_value=0)
     return imgs, caps
 
-def collate_1(batch):
+def collate_test(batch):
     imgs = []
     caps = []
     for item in batch:

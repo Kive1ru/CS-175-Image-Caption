@@ -35,7 +35,7 @@ def generate_captions(model, dataloader, tokenizer, similarity_checker, file_pre
     bleu_scores = []
     similarities = []
     for imgs, captions in dataloader:
-        b_size = captions.shape[0]
+        b_size = imgs.shape[0]
         imgs = imgs.to(device)
         for i in range(b_size):
             if img_num is not None and count >= img_num:
@@ -48,8 +48,9 @@ def generate_captions(model, dataloader, tokenizer, similarity_checker, file_pre
             bleu_score = sentence_bleu([s.split() for s in target_sentences], sentence.split(), weights=[1/ngram for _ in range(ngram)])
             bleu_scores.append(bleu_score)
 
-            similarity = similarity_checker.check_sentences([sentence] + target_sentences)
-            similarities.append(similarity)
+            if similarity_checker is not None:
+                _, similarity = similarity_checker.check_sentences([sentence] + target_sentences)
+                similarities.append(similarity)
 
             if img_num is not None:
                 print(target_sentences)
@@ -145,8 +146,18 @@ def experiment():
 
 
 if __name__ == "__main__":
-    experiment()
+    # experiment()
     pass
+    l1 = [1,2,3,2,1,2,3,2,1]
+    l2 = [5,7,7,6,5,9,7,6,6]
+    fig, ax = plt.subplots()
+    ax2 = ax.twinx()
+    ax.plot(l1, 'b')
+    ax.set_ylabel("l1")
+    ax2.plot(l2, 'r')
+    ax2.set_ylabel("l2")
+    plt.show()
+
     # ngram = 3
     # score = sentence_bleu(["this is".split()], "this is me shouting".split(), [1/ngram for _ in range(ngram)])
     # print(score)

@@ -3,8 +3,9 @@ from torch.utils.data import DataLoader, random_split
 import torchvision
 import torch
 import os
+import pickle
 import matplotlib.pyplot as plt
-from dataset import FDataset, TestDataset, collate, collate_1
+from dataset import FDataset, TestDataset, collate_train, collate_test
 from models import BaselineRNN, Img2Cap
 from utils import get_device, save_model, load_model
 from eval import generate_captions
@@ -16,14 +17,20 @@ MODEL_PATH = "model_weights.torch"
 NUM_WORKERS = 4
 
 
-def plot_and_save(ax, fig, train_losses, eval_losses, eval_x_axis):
+def plot_and_save(axes, fig, train_losses, eval_losses, scores, eval_x_axis):
+    ax, ax2 = axes
     ax.clear()
+    ax2.clear()
     ax.plot(train_losses, 'b', label="train")
-    ax.plot(eval_x_axis, eval_losses, 'r', label="eval")
+    ax.plot(eval_x_axis, eval_losses, 'ro-', label="validation")
     ax.set_title("Image Captioning Transformer")
     ax.set_xlabel("# batch")
     ax.set_ylabel("loss")
-    ax.legend()
+    ax.legend(loc='upper left')
+
+    ax2.plot(eval_x_axis, scores, 'go-', label="similarity")
+    ax2.set_ylabel("score")
+    ax2.legend(loc='upper right')
     fig.canvas.draw()
     fig.savefig("figs/loss.png")
 
@@ -55,7 +62,7 @@ def train(epochs=25, batch_size=128, lr=0.0003, num_layers=3):
         batch_size=batch_size,
         shuffle=True,
         num_workers=NUM_WORKERS,
-        collate_fn=collate
+        collate_fn=collate_train
     )
 
     test_loader = DataLoader(
@@ -63,7 +70,7 @@ def train(epochs=25, batch_size=128, lr=0.0003, num_layers=3):
         batch_size=batch_size,
         shuffle=False,
         num_workers=NUM_WORKERS,
-        collate_fn=collate_1
+        collate_fn=collate_test
     )
 
     # for img, caps in test_loader:
@@ -82,14 +89,16 @@ def train(epochs=25, batch_size=128, lr=0.0003, num_layers=3):
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
     criteria = torch.nn.CrossEntropyLoss(ignore_index=train_set.tokenizer.word_index['<PAD>'])
     
-    similarity_tool = similarity_check_tool()
+    similarity_tool = None  # similarity_check_tool()
 
     train_losses = []
     eval_losses = []
     bleu_scores = []
+    similarity_scores = []
     eval_x_axis = []
     fig = plt.figure()  # figsize=(5, 3)
     ax = fig.add_subplot(111)
+    ax2 = ax.twinx()
     plt.ion()
 
     fig.show()
@@ -123,13 +132,13 @@ def train(epochs=25, batch_size=128, lr=0.0003, num_layers=3):
                 # validate
                 if (b+1) % 100 == 0:
                     model.eval()
-                    generate_captions(model, test_loader, train_set.tokenizer, similarity_tool, f"fig_{e}_{b}", img_num=5)
+                    generate_captions(model, test_loader, train_set.tokenizer, similarity_tool, f"fig_{e}_{b}_", img_num=5)
                     model.train()
 
-                plot_and_save(ax, fig, train_losses, eval_losses, eval_x_axis)
+                plot_and_save([ax, ax2], fig, train_losses, eval_losses, similarity_scores, eval_x_axis)
             scheduler.step()
 
-            # evaluate
+            # validate
             model.eval()
             eval_loss = []
             for b, (imgs, captions) in enumerate(test_loader):
@@ -150,19 +159,20 @@ def train(epochs=25, batch_size=128, lr=0.0003, num_layers=3):
 
             eval_losses.append(sum(eval_loss) / len(eval_loss))  # only plot a loss for each epoch
             eval_x_axis.append(len(train_losses))
-            bleu, similarity = generate_captions(model, test_loader, train_set.tokenizer, similarity_tool, f"fig_{e}")
-            bleu_scores.append(bleu)
-            print("eval loss:", sum(eval_loss) / len(eval_loss), "bleu score:", bleu, "similarity:", similarity)
+            # bleu, similarity = generate_captions(model, test_loader, train_set.tokenizer, similarity_tool, f"fig_{e}_")
+            # bleu_scores.append(bleu)
+            # similarity_scores.append(similarity)
+            similarity_scores.append(0)
+            print("eval loss:", sum(eval_loss) / len(eval_loss))
+            # print("bleu score:", bleu, "similarity:", similarity)
 
-            plot_and_save(ax, fig, train_losses, eval_losses, eval_x_axis)
+            plot_and_save([ax, ax2], fig, train_losses, eval_losses, similarity_scores, eval_x_axis)
 
             save_model(epochs, model, optimizer, loss, f"model_weights/caption_{e}.torch")
-            torch.save({
-                "eval_losses": eval_losses,
-                "bleu_scores": bleu_scores,
-                "eval_x_axis": eval_x_axis,
-                "train_losses": train_losses
-            }, "loss_info.torch")
+            with open("train_losses.pickle", "wb") as f:
+                pickle.dump(train_losses, f)
+            with open("eval_losses.pickle", "wb") as f:
+                pickle.dump((eval_losses, eval_x_axis), f)
 
     except:
         # save_model(e, b, model, optimizer, loss, MODEL_PATH)
