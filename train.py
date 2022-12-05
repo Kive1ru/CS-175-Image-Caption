@@ -12,9 +12,9 @@ from eval import generate_captions
 import time
 from similarity_check_tools import similarity_check_tool
 
-BASE_DIR = f"{os.getcwd()}/data/flickr8k"
+BASE_DIR = f"{os.getcwd()}/data/flickr30k"
 MODEL_PATH = "model_weights.torch"
-NUM_WORKERS = 4
+NUM_WORKERS = 2
 
 
 def plot_and_save(axes, fig, train_losses, eval_losses, scores, eval_x_axis):
@@ -22,7 +22,7 @@ def plot_and_save(axes, fig, train_losses, eval_losses, scores, eval_x_axis):
     ax.clear()
     ax2.clear()
     ax.plot(train_losses, 'b', label="train")
-    ax.plot(eval_x_axis, eval_losses, 'ro-', label="validation")
+    ax.plot(eval_x_axis, eval_losses, 'ro-', label="test")
     ax.set_title("Image Captioning Transformer")
     ax.set_xlabel("# batch")
     ax.set_ylabel("loss")
@@ -47,7 +47,8 @@ def train(epochs=25, batch_size=128, lr=0.0003, num_layers=3):
     train_set = FDataset(
         root_dir=BASE_DIR + "/Images",
         capFilename=BASE_DIR + "/train.csv",
-        transform=img_transform
+        transform=img_transform,
+        num_words = 11181
     )
 
     test_set = TestDataset(
@@ -130,7 +131,7 @@ def train(epochs=25, batch_size=128, lr=0.0003, num_layers=3):
                 last_time = now
 
                 # validate
-                if (b+1) % 100 == 0:
+                if (b+1) % 300 == 0:
                     model.eval()
                     generate_captions(model, test_loader, train_set.tokenizer, similarity_tool, f"fig_{e}_{b}_", img_num=5)
                     model.train()
@@ -138,7 +139,7 @@ def train(epochs=25, batch_size=128, lr=0.0003, num_layers=3):
                 plot_and_save([ax, ax2], fig, train_losses, eval_losses, similarity_scores, eval_x_axis)
             scheduler.step()
 
-            # validate
+            # evaluate
             model.eval()
             eval_loss = []
             for b, (imgs, captions) in enumerate(test_loader):

@@ -59,7 +59,7 @@ def generate_captions(model, dataloader, tokenizer, similarity_checker, file_pre
                 print()
                 save_image_caption(
                     imgs[i].cpu().detach().numpy(),
-                    sentence + f" BLEU score: {bleu_score}",
+                    sentence,
                     f"figs/{file_prefix}{count}.png"
                 )
             count += 1
