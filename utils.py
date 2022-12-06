@@ -20,7 +20,7 @@ def save_model(epoch, model, optimizer, loss, path):
     }, path)
 
 
-def load_model(path, model, optimizer):
+def load_checkpoint(path, model, optimizer):
     try:
         checkpoint = torch.load(path)
         model.load_state_dict(checkpoint['model_state_dict'])
@@ -32,3 +32,8 @@ def load_model(path, model, optimizer):
         loss = 0
 
     return epoch, loss
+
+
+def load_model(path, model):
+    model.load_state_dict(torch.load(path)["model_state_dict"])
+    return model

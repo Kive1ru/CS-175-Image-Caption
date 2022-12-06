@@ -3,7 +3,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 from utils import get_device
 
-class similarity_check_tool():
+class SimilarityTool():
     def __init__(self):
         self.model = SentenceTransformer('bert-base-nli-mean-tokens', device=get_device())
     
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     textb5 = "Two dogs on pavement moving toward each other ."
     sentences2 = [textb0,textb1,textb2,textb3,textb4,textb5]
 
-    sentc = similarity_check_tool()
+    sentc = SimilarityTool()
     print(sentc.check_sentences(sentences1))
     print(sentc.check_sentences(sentences2))
     print(sentc.check_sentences(["this is me", "this is me", "that is me", "this person is me"]))

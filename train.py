@@ -7,10 +7,10 @@ import pickle
 import matplotlib.pyplot as plt
 from dataset import FDataset, TestDataset, collate_train, collate_test
 from models import BaselineRNN, Img2Cap
-from utils import get_device, save_model, load_model
+from utils import get_device, save_model, load_checkpoint
 from eval import generate_captions
 import time
-from similarity_check_tools import similarity_check_tool
+from similarity_check_tools import SimilarityTool
 
 BASE_DIR = f"{os.getcwd()}/data/flickr30k"
 MODEL_PATH = "model_weights.torch"
@@ -48,7 +48,7 @@ def train(epochs=25, batch_size=128, lr=0.0003, num_layers=3):
         root_dir=BASE_DIR + "/Images",
         capFilename=BASE_DIR + "/train.csv",
         transform=img_transform,
-        num_words = 11181
+        num_words=11181
     )
 
     test_set = TestDataset(
@@ -90,7 +90,7 @@ def train(epochs=25, batch_size=128, lr=0.0003, num_layers=3):
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
     criteria = torch.nn.CrossEntropyLoss(ignore_index=train_set.tokenizer.word_index['<PAD>'])
     
-    similarity_tool = None  # similarity_check_tool()
+    similarity_tool = None  # SimilarityTool()
 
     train_losses = []
     eval_losses = []
@@ -176,7 +176,6 @@ def train(epochs=25, batch_size=128, lr=0.0003, num_layers=3):
                 pickle.dump((eval_losses, eval_x_axis), f)
 
     except:
-        # save_model(e, b, model, optimizer, loss, MODEL_PATH)
         raise
 
 

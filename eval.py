@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 from pathlib import Path
-from utils import get_device
+from utils import get_device, load_model
 from models import Img2Cap
 from dataset import FDataset
 from nltk.translate.bleu_score import sentence_bleu
@@ -15,15 +15,22 @@ from pathlib import Path
 BASE_DIR = "data/flickr8k"
 
 
-def evaluate_model(model, description, pictures, tokenizer, max_cap):
-    actuallist, predictlist = list(), list()
-    for key, desc_list in description.items():
-        prediction = ...
-        actual_des = ...
-        actuallist.append(actual_des)
-        predictlist.append(prediction)
+def evaluate_models(models_folder, num_models, file_prefix, extension, dataloader, tokenizer, similarity_checker):
+    device = get_device()
+    model_dir = Path(models_folder)
+    assert model_dir.is_dir()
 
-    print("")
+    bleu_scores = []
+    similarities = []
+    model = Img2Cap(tokenizer, 400, torchvision.models.ResNet50_Weights.IMAGENET1K_V2)
+    for e in range(num_models):
+        model = load_model(model_dir / (file_prefix + str(e) + extension), model)
+        # model.load_state_dict(torch.load(model_dir / (file_prefix + str(e) + extension))["model_state_dict"])
+        bleu_score, similarity = generate_captions(model, dataloader, tokenizer, similarity_checker, f"epoch{e}_")
+        bleu_scores.append(bleu_score)
+        similarities.append(similarity)
+        print(f"epoch {e}: BLEU score={round(bleu_score, 3)}, similarity={round(similarity, 3)}")
+    return bleu_scores, similarities
 
 def generate_captions(model, dataloader, tokenizer, similarity_checker, file_prefix, img_num=None):
     """
@@ -63,7 +70,9 @@ def generate_captions(model, dataloader, tokenizer, similarity_checker, file_pre
                     f"figs/{file_prefix}{count}.png"
                 )
             count += 1
-    return sum(bleu_scores) / len(bleu_scores), sum(similarities) / len(similarities)
+            if count % 50:
+                print(count, sum(bleu_scores) / len(bleu_scores))
+    return sum(bleu_scores) / len(bleu_scores), sum(similarities) / len(similarities) if len(similarities) > 0 else 0
 
 
 def save_image_caption(img, caption, file_path=None):
@@ -72,7 +81,7 @@ def save_image_caption(img, caption, file_path=None):
     ----------
     img: np.ndarray
         (3xHxW)
-    caption: string
+    caption: str
     """
     count = sum(1 for _ in Path("figs").glob("fig_*_*.png"))
     img[0] = img[0] * 0.229
@@ -148,16 +157,3 @@ def experiment():
 if __name__ == "__main__":
     # experiment()
     pass
-    l1 = [1,2,3,2,1,2,3,2,1]
-    l2 = [5,7,7,6,5,9,7,6,6]
-    fig, ax = plt.subplots()
-    ax2 = ax.twinx()
-    ax.plot(l1, 'b')
-    ax.set_ylabel("l1")
-    ax2.plot(l2, 'r')
-    ax2.set_ylabel("l2")
-    plt.show()
-
-    # ngram = 3
-    # score = sentence_bleu(["this is".split()], "this is me shouting".split(), [1/ngram for _ in range(ngram)])
-    # print(score)
