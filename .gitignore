@@ -1,4 +1,4 @@
 /.idea/
 /__pycache__/
-/data/flickr8k/Images/
-/data/flickr30k/Images/
+/data/flickr8k/Images/*
+/data/flickr30k/Images/*
