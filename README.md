@@ -47,3 +47,7 @@ Generates English caption for a given image.
     eval.py: all other functions
     util.py
     similarity_check_tool.py: all code self-written but inspired by source.
+    
+## Team Report and Powerpoint:
+    Final Report https://docs.google.com/document/d/1OHwihVbzBwEoY7vhDldvtK01cUpWiCgN/edit?usp=sharing&ouid=117238140820586439680&rtpof=true&sd=true
+    Final PPT https://docs.google.com/presentation/d/1ow5xYlE_4BGYYjSdj2jCaTdR93sBfy55/edit?usp=sharing&ouid=117238140820586439680&rtpof=true&sd=true
